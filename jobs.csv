@@ -1,0 +1,5 @@
+﻿job_id,config_path,data_path,max_success
+form_glucose,configs/form_glucose.json,data/form_glucose.csv,30
+form_tiem_ngoai_th,configs/form_tiem_ngoai_th.json,data/form_tiem_ngoai_th.csv,30
+form_vet_thuong_sach,configs/form_vet_thuong_sach.json,data/form_vet_thuong_sach.csv,30
+form_tiem_bap_trong_da_duoi_da,configs/form_tiem_bap_trong_da_duoi_da.json,data/form_tiem_bap_trong_da_duoi_da.csv,30

@@ -1,0 +1,67 @@
+{
+  "form_glucose": {
+    "pros": [
+      "Thực hiện tốt khâu chuẩn bị, trang phục chỉnh tề, rửa tay và có thái độ giao tiếp, chào hỏi người bệnh rất lịch sự, chuẩn mực.",
+      "Kiểm tra máy đo, que thử và bút chích máu cẩn thận trước khi tiến hành, đảm bảo sẵn sàng cho thủ thuật.",
+      "Tuân thủ nghiêm ngặt việc đối chiếu, xác định đúng người bệnh trước khi thực hiện kỹ thuật.",
+      "Thông báo và giải thích thao tác nhẹ nhàng, hướng dẫn tư thế hợp lý giúp người bệnh cảm thấy thoải mái và hợp tác tốt.",
+      "Biết chú ý điều chỉnh độ sâu của kim phù hợp với độ dày da của từng người bệnh, giúp hạn chế tối đa cảm giác đau.",
+      "Thực hiện chích đúng vị trí cạnh bên đầu ngón tay và biết cách vuốt nhẹ nhàng từ gốc ngón tay thay vì bóp nặn mạnh.",
+      "Thao tác đưa que thử hứng giọt máu dứt khoát, gọn gàng, lấy đủ lượng máu ngay từ lần đầu tiên.",
+      "Lau sạch vết chích chu đáo, thông báo kết quả ngay khi có và giữ thái độ hòa nhã với người bệnh.",
+      "Bỏ kim, que thử đúng nơi quy định và phân loại rác thải y tế chính xác, gọn gàng.",
+      "Thực hiện đầy đủ bước ghi nhận kết quả vào phiếu theo dõi và không quên rửa tay sau khi kết thúc."
+    ],
+    "cons": [
+      "Đôi khi thao tác rửa tay thường quy còn hơi nhanh, cần chú ý đảm bảo đủ thời gian và chà sát kỹ các bước để tối ưu hiệu quả kiểm soát nhiễm khuẩn.",
+      "Cần phối hợp nhịp nhàng hơn giữa việc gắn que vào máy và sát khuẩn tay người bệnh, tránh để máy chờ quá lâu bị tắt màn hình trước khi lấy được máu.",
+      "Thỉnh thoảng vẫn để mức kim hơi nông so với da của những người bệnh lao động tay chân, khiến máu khó ra và phải thao tác lại.",
+      "Một vài trường hợp còn hơi vội, chưa đợi cồn sát khuẩn trên tay bay hơi khô hoàn toàn đã tiến hành chích máu, có thể làm người bệnh bị xót.",
+      "Có lúc thao tác vuốt nặn máu còn hơi mạnh tay, cần làm nhẹ nhàng và đều nhịp hơn từ trên xuống để người bệnh không có cảm giác bị tức ở đầu ngón tay.",
+      "Đôi khi đưa que thử hứng giọt máu chưa thật sự trúng góc hút, khiến máu vào que bị chậm hoặc máy báo chưa đủ máu, cần căn chỉnh lại tay cầm.",
+      "Cần nhắc người bệnh ấn giữ viên gòn khô tại vị trí chích đủ lâu để cầm máu hoàn toàn, tránh tình trạng vừa bỏ gòn ra đã rướm máu lại.",
+      "Lời dặn dò sau khi báo kết quả đôi khi còn hơi rập khuôn, có thể chủ động dặn thêm một chút về việc nghỉ ngơi hoặc ăn uống để người bệnh cảm thấy được quan tâm hơn.",
+      "Đôi khi quên mất việc chủ động nhắc người bệnh thả lỏng tay hoặc tìm vị trí tựa tay thật sự thoải mái trong quá trình chờ đợi.",
+      "Thao tác dọn mâm/khay dụng cụ sau khi làm xong đôi lúc còn cập rập, cần giữ sự bình tĩnh và sắp xếp lại dụng cụ gọn gàng hơn trước khi chuyển sang người bệnh tiếp theo."
+    ]
+  },
+  "form_tiem_ngoai_th": {
+    "strengths": [
+      "Điều dưỡng thực hiện kỹ thuật tiêm đúng quy trình cơ bản, tuân thủ nguyên tắc vô khuẩn.",
+      "Chuẩn bị dụng cụ đầy đủ, kiểm tra thuốc trước khi sử dụng.",
+      "Thực hiện 5 đúng, xác định đúng vị trí tiêm và thao tác tiêm tương đối chính xác.",
+      "Có giao tiếp, giải thích cho người bệnh trước và trong khi thực hiện kỹ thuật."
+    ],
+    "limitations": [
+      "Cần chú ý thực hiện đầy đủ, chặt chẽ từng bước trong quy trình kỹ thuật theo đúng quy định.",
+      "Việc quan sát, theo dõi người bệnh trong và sau tiêm cần được chú ý hơn.",
+      "Cần tăng cường nhắc lại các bước kiểm tra và đảm bảo tuân thủ quy trình nhằm nâng cao an toàn người bệnh."
+    ]
+  },
+  "form_vet_thuong_sach": {
+    "strengths": [
+      "Điều dưỡng thực hiện kỹ thuật tiêm đúng quy trình cơ bản, tuân thủ nguyên tắc vô khuẩn.",
+      "Chuẩn bị dụng cụ đầy đủ, kiểm tra thuốc trước khi sử dụng.",
+      "Thực hiện 5 đúng, xác định đúng vị trí tiêm và thao tác tiêm tương đối chính xác.",
+      "Có giao tiếp, giải thích cho người bệnh trước và trong khi thực hiện kỹ thuật."
+    ],
+    "limitations": [
+      "Cần chú ý thực hiện đầy đủ, chặt chẽ từng bước trong quy trình kỹ thuật theo đúng quy định.",
+      "Việc quan sát, theo dõi người bệnh trong và sau tiêm cần được chú ý hơn.",
+      "Cần tăng cường nhắc lại các bước kiểm tra và đảm bảo tuân thủ quy trình nhằm nâng cao an toàn người bệnh."
+    ]
+  },
+  "form_tiem_bap_trong_da_duoi_da": {
+    "strengths": [
+      "Điều dưỡng thực hiện kỹ thuật tiêm đúng quy trình cơ bản, tuân thủ nguyên tắc vô khuẩn.",
+      "Chuẩn bị dụng cụ đầy đủ, kiểm tra thuốc trước khi sử dụng.",
+      "Thực hiện 5 đúng, xác định đúng vị trí tiêm và thao tác tiêm tương đối chính xác.",
+      "Có giao tiếp, giải thích cho người bệnh trước và trong khi thực hiện kỹ thuật."
+    ],
+    "limitations": [
+      "Cần chú ý thực hiện đầy đủ, chặt chẽ từng bước trong quy trình kỹ thuật theo đúng quy định.",
+      "Việc quan sát, theo dõi người bệnh trong và sau tiêm cần được chú ý hơn.",
+      "Cần tăng cường nhắc lại các bước kiểm tra và đảm bảo tuân thủ quy trình nhằm nâng cao an toàn người bệnh."
+    ]
+  }
+}

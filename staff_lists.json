@@ -1,0 +1,20 @@
+{
+  "ctch": {
+    "title": "Danh sách CTCH",
+    "departments": [
+      "CTCH"
+    ]
+  },
+  "ngoai_th": {
+    "title": "Danh sách NGOẠI TH",
+    "departments": [
+      "NGOẠI TH"
+    ]
+  },
+  "nieu": {
+    "title": "Danh sách KHOA NIỆU",
+    "departments": [
+      "TIẾT NIỆU"
+    ]
+  }
+}
