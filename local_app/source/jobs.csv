@@ -1,0 +1,10 @@
+﻿job_id,config_path,data_path,max_success
+form_glucose,configs/form_glucose.json,data/form_glucose.csv,30
+form_tiem_ngoai_th,configs/form_tiem_ngoai_th.json,data/form_tiem_ngoai_th.csv,30
+form_vet_thuong_sach,configs/form_vet_thuong_sach.json,data/form_vet_thuong_sach.csv,30
+form_tiem_bap_trong_da_duoi_da,configs/form_tiem_bap_trong_da_duoi_da.json,data/form_tiem_bap_trong_da_duoi_da.csv,30
+form_bo_bot,configs/form_bo_bot.json,data/form_bo_bot.csv,30
+form_cat_chi,configs/form_cat_chi.json,data/form_cat_chi.csv,30
+form_catheter_ngoai_vi,configs/form_catheter_ngoai_vi.json,data/form_catheter_ngoai_vi.csv,30
+form_loet_ty_de,configs/form_loet_ty_de.json,data/form_loet_ty_de.csv,30
+form_vet_thuong_nhiem_khuan,configs/form_vet_thuong_nhiem_khuan.json,data/form_vet_thuong_nhiem_khuan.csv,30

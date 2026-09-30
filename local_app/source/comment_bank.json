@@ -1,0 +1,121 @@
+{
+  "form_glucose": {
+    "pros": [
+      "Thực hiện tốt khâu chuẩn bị, trang phục chỉnh tề, rửa tay và có thái độ giao tiếp, chào hỏi người bệnh rất lịch sự, chuẩn mực.",
+      "Kiểm tra máy đo, que thử và bút chích máu cẩn thận trước khi tiến hành, đảm bảo sẵn sàng cho thủ thuật.",
+      "Tuân thủ nghiêm ngặt việc đối chiếu, xác định đúng người bệnh trước khi thực hiện kỹ thuật.",
+      "Thông báo và giải thích thao tác nhẹ nhàng, hướng dẫn tư thế hợp lý giúp người bệnh cảm thấy thoải mái và hợp tác tốt.",
+      "Biết chú ý điều chỉnh độ sâu của kim phù hợp với độ dày da của từng người bệnh, giúp hạn chế tối đa cảm giác đau.",
+      "Thực hiện chích đúng vị trí cạnh bên đầu ngón tay và biết cách vuốt nhẹ nhàng từ gốc ngón tay thay vì bóp nặn mạnh.",
+      "Thao tác đưa que thử hứng giọt máu dứt khoát, gọn gàng, lấy đủ lượng máu ngay từ lần đầu tiên.",
+      "Lau sạch vết chích chu đáo, thông báo kết quả ngay khi có và giữ thái độ hòa nhã với người bệnh.",
+      "Bỏ kim, que thử đúng nơi quy định và phân loại rác thải y tế chính xác, gọn gàng.",
+      "Thực hiện đầy đủ bước ghi nhận kết quả vào phiếu theo dõi và không quên rửa tay sau khi kết thúc."
+    ],
+    "cons": [
+      "Đôi khi thao tác rửa tay thường quy còn hơi nhanh, cần chú ý đảm bảo đủ thời gian và chà sát kỹ các bước để tối ưu hiệu quả kiểm soát nhiễm khuẩn.",
+      "Cần phối hợp nhịp nhàng hơn giữa việc gắn que vào máy và sát khuẩn tay người bệnh, tránh để máy chờ quá lâu bị tắt màn hình trước khi lấy được máu.",
+      "Thỉnh thoảng vẫn để mức kim hơi nông so với da của những người bệnh lao động tay chân, khiến máu khó ra và phải thao tác lại.",
+      "Một vài trường hợp còn hơi vội, chưa đợi cồn sát khuẩn trên tay bay hơi khô hoàn toàn đã tiến hành chích máu, có thể làm người bệnh bị xót.",
+      "Có lúc thao tác vuốt nặn máu còn hơi mạnh tay, cần làm nhẹ nhàng và đều nhịp hơn từ trên xuống để người bệnh không có cảm giác bị tức ở đầu ngón tay.",
+      "Đôi khi đưa que thử hứng giọt máu chưa thật sự trúng góc hút, khiến máu vào que bị chậm hoặc máy báo chưa đủ máu, cần căn chỉnh lại tay cầm.",
+      "Cần nhắc người bệnh ấn giữ viên gòn khô tại vị trí chích đủ lâu để cầm máu hoàn toàn, tránh tình trạng vừa bỏ gòn ra đã rướm máu lại.",
+      "Lời dặn dò sau khi báo kết quả đôi khi còn hơi rập khuôn, có thể chủ động dặn thêm một chút về việc nghỉ ngơi hoặc ăn uống để người bệnh cảm thấy được quan tâm hơn.",
+      "Đôi khi quên mất việc chủ động nhắc người bệnh thả lỏng tay hoặc tìm vị trí tựa tay thật sự thoải mái trong quá trình chờ đợi.",
+      "Thao tác dọn mâm/khay dụng cụ sau khi làm xong đôi lúc còn cập rập, cần giữ sự bình tĩnh và sắp xếp lại dụng cụ gọn gàng hơn trước khi chuyển sang người bệnh tiếp theo."
+    ]
+  },
+  "form_tiem_ngoai_th": {
+    "strengths": [
+      "Điều dưỡng thực hiện kỹ thuật tiêm đúng quy trình cơ bản, tuân thủ nguyên tắc vô khuẩn.",
+      "Chuẩn bị dụng cụ đầy đủ, kiểm tra thuốc trước khi sử dụng.",
+      "Thực hiện 5 đúng, xác định đúng vị trí tiêm và thao tác tiêm tương đối chính xác.",
+      "Có giao tiếp, giải thích cho người bệnh trước và trong khi thực hiện kỹ thuật."
+    ],
+    "limitations": [
+      "Cần chú ý thực hiện đầy đủ, chặt chẽ từng bước trong quy trình kỹ thuật theo đúng quy định.",
+      "Việc quan sát, theo dõi người bệnh trong và sau tiêm cần được chú ý hơn.",
+      "Cần tăng cường nhắc lại các bước kiểm tra và đảm bảo tuân thủ quy trình nhằm nâng cao an toàn người bệnh."
+    ]
+  },
+  "form_vet_thuong_sach": {
+    "strengths": [
+      "Thực hiện chăm sóc vết thương sạch đúng trình tự và tuân thủ nguyên tắc vô khuẩn.",
+      "Chuẩn bị dụng cụ đầy đủ, nhận định tình trạng vết thương trước khi chăm sóc.",
+      "Thao tác rửa, sát khuẩn và che phủ vết thương nhẹ nhàng, đúng hướng.",
+      "Giải thích, động viên và hướng dẫn người bệnh phù hợp trong quá trình chăm sóc."
+    ],
+    "limitations": [
+      "Cần chú ý thực hiện đầy đủ, chặt chẽ từng bước trong quy trình kỹ thuật theo đúng quy định.",
+      "Cần chú ý hơn phạm vi sát khuẩn và giữ vùng da quanh vết thương khô ráo.",
+      "Cần tăng cường nhận định, thông báo tình trạng vết thương và hướng dẫn người bệnh sau chăm sóc."
+    ]
+  },
+  "form_tiem_bap_trong_da_duoi_da": {
+    "strengths": [
+      "Điều dưỡng thực hiện kỹ thuật tiêm đúng quy trình cơ bản, tuân thủ nguyên tắc vô khuẩn.",
+      "Chuẩn bị dụng cụ đầy đủ, kiểm tra thuốc trước khi sử dụng.",
+      "Thực hiện 5 đúng, xác định đúng vị trí tiêm và thao tác tiêm tương đối chính xác.",
+      "Có giao tiếp, giải thích cho người bệnh trước và trong khi thực hiện kỹ thuật."
+    ],
+    "limitations": [
+      "Cần chú ý thực hiện đầy đủ, chặt chẽ từng bước trong quy trình kỹ thuật theo đúng quy định.",
+      "Việc quan sát, theo dõi người bệnh trong và sau tiêm cần được chú ý hơn.",
+      "Cần tăng cường nhắc lại các bước kiểm tra và đảm bảo tuân thủ quy trình nhằm nâng cao an toàn người bệnh."
+    ]
+  },
+  "form_bo_bot": {
+    "strengths": [
+      "Chuẩn bị đầy đủ phương tiện, vật tư và trợ cụ trước khi tiến hành bó bột.",
+      "Thao tác quấn, vuốt và chỉnh bột tương đối đều, đúng tư thế cần cố định.",
+      "Có kiểm tra các vùng tỳ đè và hướng dẫn người bệnh theo dõi sau bó bột.",
+      "Phối hợp giữa các thành viên tốt, bảo đảm người bệnh được đặt ở tư thế phù hợp."
+    ],
+    "limitations": [
+      "Cần chú ý đệm gòn kỹ hơn tại các vị trí có nguy cơ tỳ đè.",
+      "Cần thực hiện thao tác quấn bột đều tay và hạn chế tỳ ngón tay làm lõm bột.",
+      "Cần hướng dẫn cụ thể hơn các dấu hiệu bất thường cần quay lại cơ sở y tế."
+    ]
+  },
+  "form_cat_chi": {
+    "strengths": [
+      "Chuẩn bị dụng cụ đầy đủ và thực hiện cắt chỉ theo đúng nguyên tắc vô khuẩn.",
+      "Nhận định vết thương, kiểm tra sự nguyên vẹn của từng mối chỉ sau khi cắt.",
+      "Thao tác nhẹ nhàng, quan sát và động viên người bệnh trong quá trình thực hiện.",
+      "Sát khuẩn, che phủ và cố định vết thương đúng trình tự."
+    ],
+    "limitations": [
+      "Cần chú ý hơn thao tác rút chỉ để hạn chế phần chỉ ngoài da đi qua mô.",
+      "Cần đánh giá kỹ tình trạng liền vết thương trước và sau khi cắt chỉ.",
+      "Cần hướng dẫn người bệnh rõ hơn cách theo dõi và chăm sóc vết thương tại nhà."
+    ]
+  },
+  "form_catheter_ngoai_vi": {
+    "strengths": [
+      "Thực hiện sát khuẩn cổng kết nối và kỹ thuật bơm ngừng đúng quy trình.",
+      "Kiểm tra sự lưu thông của catheter và quan sát vị trí đặt kim trong quá trình thực hiện.",
+      "Tuân thủ y lệnh về thuốc, dịch truyền và tốc độ truyền.",
+      "Dặn dò người bệnh theo dõi vị trí catheter và báo ngay khi có bất thường."
+    ],
+    "limitations": [
+      "Cần bảo đảm đủ thời gian để cổng kết nối khô sau sát khuẩn.",
+      "Cần quan sát kỹ hơn dấu hiệu sưng, đau hoặc thoát mạch tại vị trí catheter.",
+      "Cần ghi ngày giờ thay băng và kiểm tra cố định catheter đầy đủ hơn."
+    ]
+  },
+  "form_vet_thuong_nhiem_khuan": {
+    "strengths": [
+      "Thực hiện chăm sóc vết thương nhiễm khuẩn đúng trình tự và tuân thủ nguyên tắc vô khuẩn.",
+      "Nhận định tình trạng vết thương, dịch tiết và mô hoại tử tương đối đầy đủ trước khi can thiệp.",
+      "Thao tác rửa, làm sạch, sát khuẩn và che phủ vết thương nhẹ nhàng, đúng hướng.",
+      "Phân loại chất thải lây nhiễm và xử lý dụng cụ sau chăm sóc đúng quy định.",
+      "Có giải thích, động viên và hướng dẫn người bệnh theo dõi vết thương sau chăm sóc."
+    ],
+    "limitations": [
+      "Cần nhận định và mô tả cụ thể hơn màu sắc, mùi và lượng dịch tiết của vết thương.",
+      "Cần chú ý phạm vi rửa, sát khuẩn và giữ vùng da xung quanh vết thương khô ráo.",
+      "Cần tuân thủ chặt chẽ y lệnh khi cắt lọc mô hoại tử hoặc tháo bỏ mối chỉ.",
+      "Cần hướng dẫn rõ hơn các dấu hiệu nhiễm khuẩn tiến triển cần báo ngay cho nhân viên y tế."
+    ]
+  }
+}

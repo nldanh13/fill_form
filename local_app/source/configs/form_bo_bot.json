@@ -1,0 +1,17 @@
+{
+  "id": "form_bo_bot",
+  "title": "Bảng kiểm kỹ thuật bó bột",
+  "url": "https://docs.google.com/forms/d/e/1FAIpQLScPIQn3R0bWifsKA0wgSMS9pj6gNpAW3LGo8eRUGKWNEiMndQ/viewform",
+  "success_text": "Hệ thống đã ghi lại câu trả lời của bạn",
+  "score_count": 13,
+  "allowed_list_ids": ["ctch"],
+  "department_source": "staff",
+  "submit_button": {"by": "role", "role": "button", "value": "Gửi"},
+  "fields": [
+    {"type": "fill", "optional": true, "debug_name": "email", "locator": {"by": "css", "value": "input[type='email']:not([disabled])"}, "source": {"profile": "email"}},
+    {"type": "fill", "locator": {"by": "question", "question": "NGƯỜI THỰC HIỆN", "control": "text"}, "source": {"roster": "name"}},
+    {"type": "dropdown", "locator": {"by": "question", "question": "KHOA", "control": "listbox"}, "source": {"roster": "department"}},
+    {"type": "fill", "locator": {"by": "question", "question": "NHẬN XÉT", "control": "textarea"}, "source": {"random_comment": {"bank_id": "form_bo_bot", "k_pros_min": 2, "k_pros_max": 3, "k_cons_min": 1, "k_cons_max": 2}}}
+  ],
+  "department_display_map": {"CTCH": "CHẤN THƯƠNG CHỈNH HÌNH", "CC - HSTC": "CẤP CỨU - HỒI SỨC TÍCH CỰC", "GMHS": "GÂY MÊ HỒI SỨC"}
+}

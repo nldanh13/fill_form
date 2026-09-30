@@ -1,0 +1,13 @@
+{
+  "id": "form_loet_ty_de",
+  "title": "Bảng kiểm chăm sóc vết loét tỳ đè",
+  "url": "https://docs.google.com/forms/d/e/1FAIpQLSfZ60xbMrMsq59fVWa6tNHO4nz2KZfh3Dwva3JHPyM4CXKY1w/viewform",
+  "success_text": "Hệ thống đã ghi lại câu trả lời của bạn",
+  "score_count": 21,
+  "multi_page": true,
+  "anonymous": true,
+  "submit_button": {"by": "role", "role": "button", "value": "Gửi"},
+  "fields": [
+    {"type": "fill", "optional": true, "debug_name": "email", "locator": {"by": "css", "value": "input[type='email']:not([disabled])"}, "source": {"profile": "email"}}
+  ]
+}

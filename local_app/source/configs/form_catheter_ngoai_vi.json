@@ -1,0 +1,16 @@
+{
+  "id": "form_catheter_ngoai_vi",
+  "title": "Bảng kiểm tiêm hoặc truyền dịch qua catheter ngoại vi",
+  "url": "https://docs.google.com/forms/d/e/1FAIpQLSeLt9R7bFXjvVJy4M46_DDt8LE2xIPtRM5rnZ4D9vQF63GVKw/viewform",
+  "success_text": "Hệ thống đã ghi lại câu trả lời của bạn",
+  "score_count": 14,
+  "allowed_degrees": ["TRUNG CẤP", "CAO ĐẲNG", "ĐẠI HỌC", "SAU ĐẠI HỌC"],
+  "department_source": "staff",
+  "submit_button": {"by": "role", "role": "button", "value": "Gửi"},
+  "fields": [
+    {"type": "fill", "locator": {"by": "question", "question": "NGƯỜI THỰC HIỆN", "control": "text"}, "source": {"roster": "name"}},
+    {"type": "dropdown", "locator": {"by": "question", "question": "TRÌNH ĐỘ", "control": "listbox"}, "source": {"roster": "trinh_do"}},
+    {"type": "dropdown", "locator": {"by": "question", "question": "KHOA", "control": "listbox"}, "source": {"roster": "department"}},
+    {"type": "fill", "locator": {"by": "question", "question": "NHẬN XÉT", "control": "textarea"}, "source": {"random_comment": {"bank_id": "form_catheter_ngoai_vi", "k_pros_min": 2, "k_pros_max": 3, "k_cons_min": 1, "k_cons_max": 2}}}
+  ]
+}

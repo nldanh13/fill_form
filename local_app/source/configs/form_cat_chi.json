@@ -1,0 +1,18 @@
+{
+  "id": "form_cat_chi",
+  "title": "Bảng kiểm kỹ thuật cắt chỉ vết thương",
+  "url": "https://docs.google.com/forms/d/e/1FAIpQLSfysyKf6S90CGOSGxERHWvNM_9WjwaAGg4cHq_4FA6GyhDQmg/viewform",
+  "success_text": "Hệ thống đã ghi lại câu trả lời của bạn",
+  "score_count": 25,
+  "allowed_degrees": ["TRUNG CẤP", "CAO ĐẲNG", "ĐẠI HỌC", "SAU ĐẠI HỌC"],
+  "department_source": "staff",
+  "submit_button": {"by": "role", "role": "button", "value": "Gửi"},
+  "fields": [
+    {"type": "fill", "optional": true, "debug_name": "email", "locator": {"by": "css", "value": "input[type='email']:not([disabled])"}, "source": {"profile": "email"}},
+    {"type": "fill", "locator": {"by": "question", "question": "NGƯỜI THỰC HIỆN", "control": "text"}, "source": {"roster": "name"}},
+    {"type": "dropdown", "locator": {"by": "question", "question": "TRÌNH ĐỘ", "control": "listbox"}, "source": {"roster": "trinh_do"}},
+    {"type": "dropdown", "locator": {"by": "question", "question": "KHOA", "control": "listbox"}, "source": {"roster": "department"}},
+    {"type": "fill", "locator": {"by": "question", "question": "NHẬN XÉT", "control": "textarea"}, "source": {"random_comment": {"bank_id": "form_cat_chi", "k_pros_min": 2, "k_pros_max": 3, "k_cons_min": 1, "k_cons_max": 2}}}
+  ],
+  "department_display_map": {"CTCH": "CHẤN THƯƠNG CHỈNH HÌNH", "NGOẠI TH": "NGOẠI TỔNG HỢP", "TIẾT NIỆU": "TRUNG TÂM TIẾT NIỆU", "CC - HSTC": "CẤP CỨU - HỒI SỨC TÍCH CỰC", "GMHS": "GÂY MÊ HỒI SỨC"}
+}
