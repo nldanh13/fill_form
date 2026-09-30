@@ -47,14 +47,19 @@ def run(job_id):
                 staff=legacy.choose_staff_from_pool(pool,staff_usage_counts=usage);subkey=make_key(fid,job["period"],row_no,staff.name,scores)
                 if db.execute("SELECT 1 FROM submissions WHERE submission_key=?",(subkey,)).fetchone():continue
                 total,maximum,percent=legacy.score_percent(scores);comment=legacy.build_comment(bank,fid,cfg);status="preview" if dry else "success";error=None
+                def on_captcha_wait():
+                    db.execute("UPDATE jobs SET message=? WHERE id=?",(f"{form['title']}: đang chờ bạn giải CAPTCHA và bấm Gửi trên cửa sổ Chrome",job_id));db.commit()
+                    return bool(db.execute("SELECT stop_requested FROM jobs WHERE id=?",(job_id,)).fetchone()[0])
                 try:
-                    if not dry:legacy.submit_legacy_form(page,cfg,profile,row,staff.name,staff.degree,staff.department,comment,scores)
+                    if not dry:legacy.submit_legacy_form(page,cfg,profile,row,staff.name,staff.degree,staff.department,comment,scores,on_captcha_wait=on_captcha_wait)
                 except Exception as exc:status="failed";error=str(exc)
                 submitted_at=now();record={"schema_version":1,"record_id":subkey,"period":job["period"],"submitted_at":submitted_at,"form":{"id":fid,"title":form["title"]},"respondent":{"name":staff.name,"degree":staff.degree,"department":staff.department,"list_id":staff.list_id},"source":{"row_index":row_no,"values":row},"evaluation":{"scores":scores,"score_total":total,"score_max":maximum,"score_percent":percent,"comment":comment},"delivery":{"status":status,"error":error,"dry_run":dry}}
                 cur=db.execute("INSERT OR IGNORE INTO submissions(job_id,period,form_id,form_title,submitted_at,row_index,name,degree,department,list_id,score_total,score_max,score_percent,scores,comment,status,error,submission_key,dry_run,record_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(job_id,job["period"],fid,form["title"],submitted_at,row_no,staff.name,staff.degree,staff.department,staff.list_id,total,maximum,percent,"-".join(scores),comment,status,error,subkey,int(dry),json.dumps(record,ensure_ascii=False)))
                 if cur.rowcount and not dry: archive_record(record)
                 done+=1;success+=status in ("success","preview");db.execute("UPDATE jobs SET done=?,message=? WHERE id=?",(done,f"{form['title']}: {success}/{allowed}",job_id));db.commit()
                 if status=="failed":break
+        if db.execute("SELECT stop_requested FROM jobs WHERE id=?",(job_id,)).fetchone()[0]:
+            db.execute("UPDATE jobs SET status='stopped',finished_at=?,message='Đã dừng an toàn' WHERE id=?",(now(),job_id));db.commit();return
         db.execute("UPDATE jobs SET status='completed',finished_at=?,message=? WHERE id=?",(now(),"Chạy thử hoàn tất" if dry else "Đã hoàn thành",job_id));db.commit()
     except Exception as exc:
         db.execute("UPDATE jobs SET status='failed',finished_at=?,message=? WHERE id=?",(now(),str(exc),job_id));db.commit();traceback.print_exc()

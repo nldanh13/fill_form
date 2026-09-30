@@ -12,7 +12,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 try:
     from playwright.sync_api import Locator, Page, sync_playwright
@@ -1076,6 +1076,7 @@ def submit_legacy_form(
     department: str,
     comment: str,
     scores: List[str],
+    on_captcha_wait: Optional[Callable[[], bool]] = None,
 ) -> None:
     page.goto(cfg["view_url"], wait_until="domcontentloaded")
     page.wait_for_timeout(1200)
@@ -1137,11 +1138,21 @@ def submit_legacy_form(
         return
 
     if page_shows_captcha(page):
-        print("[INFO] Form đang yêu cầu xác minh reCAPTCHA/chống spam trên trình duyệt.")
-        print("[INFO] Hãy xử lý xác minh trên cửa sổ Chromium rồi quay lại terminal nhấn Enter để tiếp tục...")
-        input()
-        if wait_submit_success(page, cfg.get("success_text", DEFAULT_SUCCESS_TEXT), timeout_ms=30000):
-            return
+        print("[INFO] Form đang yêu cầu xác minh reCAPTCHA. Hãy giải trên cửa sổ Chromium rồi bấm Gửi.")
+        if on_captcha_wait is None:
+            input("[INFO] Xong thì quay lại terminal nhấn Enter để tiếp tục...")
+            if wait_submit_success(page, cfg.get("success_text", DEFAULT_SUCCESS_TEXT), timeout_ms=30000):
+                return
+        else:
+            # Chạy từ giao diện web: không có terminal để nhấn Enter, nên chờ người
+            # dùng giải CAPTCHA và bấm Gửi, kiểm tra lại mỗi vài giây.
+            deadline = time.time() + int(cfg.get("captcha_wait_seconds", 600))
+            while time.time() < deadline:
+                if on_captcha_wait():
+                    raise RuntimeError("Đã dừng khi đang chờ giải CAPTCHA")
+                if wait_submit_success(page, cfg.get("success_text", DEFAULT_SUCCESS_TEXT), timeout_ms=5000):
+                    return
+            raise RuntimeError("Hết thời gian chờ giải CAPTCHA")
 
     dump_page_html(page, LAST_PAGE_HTML)
     raise RuntimeError(f"Timeout chờ xác nhận submit. Đã lưu HTML tại: {LAST_PAGE_HTML}")
