@@ -2,6 +2,11 @@ from __future__ import annotations
 import csv, hashlib, importlib.util, json, random, sys, traceback
 from db import connect,init_db,now,ROOT,SOURCE
 
+# Windows ghi log ra file bằng bảng mã mặc định (cp1252), nên print() tiếng Việt
+# sẽ lỗi và làm hỏng lượt gửi. Ép stdout/stderr dùng UTF-8.
+for stream in (sys.stdout,sys.stderr):
+    if hasattr(stream,"reconfigure"):stream.reconfigure(encoding="utf-8",errors="replace")
+
 def load_legacy():
     spec=importlib.util.spec_from_file_location("legacy_runner",SOURCE/"legacy_runner.py")
     mod=importlib.util.module_from_spec(spec);sys.modules[spec.name]=mod;spec.loader.exec_module(mod);return mod
@@ -15,7 +20,7 @@ def run(job_id):
     if not job:return
     db.execute("UPDATE jobs SET status='running',started_at=?,message='Đang nạp cấu hình' WHERE id=?",(now(),job_id));db.commit()
     legacy=load_legacy();profile=legacy.load_json(SOURCE/"profile.json");roster=legacy.load_json(SOURCE/"roster.json");bank=legacy.load_json(SOURCE/"comment_bank.json");lists=legacy.load_staff_lists(roster)
-    context=page=pw=None
+    context=page=pw=None;last_error=None
     try:
         form_ids=json.loads(job["form_ids"]);requested=int(job["requested_count"]);dry=bool(job["dry_run"]);done=0;selected_lists=json.loads(job["selected_list_ids"] or '["ctch"]')
         if not dry:
@@ -57,9 +62,11 @@ def run(job_id):
                 cur=db.execute("INSERT OR IGNORE INTO submissions(job_id,period,form_id,form_title,submitted_at,row_index,name,degree,department,list_id,score_total,score_max,score_percent,scores,comment,status,error,submission_key,dry_run,record_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(job_id,job["period"],fid,form["title"],submitted_at,row_no,staff.name,staff.degree,staff.department,staff.list_id,total,maximum,percent,"-".join(scores),comment,status,error,subkey,int(dry),json.dumps(record,ensure_ascii=False)))
                 if cur.rowcount and not dry: archive_record(record)
                 done+=1;success+=status in ("success","preview");db.execute("UPDATE jobs SET done=?,message=? WHERE id=?",(done,f"{form['title']}: {success}/{allowed}",job_id));db.commit()
-                if status=="failed":break
+                if status=="failed":last_error=error;break
         if db.execute("SELECT stop_requested FROM jobs WHERE id=?",(job_id,)).fetchone()[0]:
             db.execute("UPDATE jobs SET status='stopped',finished_at=?,message='Đã dừng an toàn' WHERE id=?",(now(),job_id));db.commit();return
+        if last_error:
+            db.execute("UPDATE jobs SET status='failed',finished_at=?,message=? WHERE id=?",(now(),f"Lỗi khi gửi: {last_error}",job_id));db.commit();return
         db.execute("UPDATE jobs SET status='completed',finished_at=?,message=? WHERE id=?",(now(),"Chạy thử hoàn tất" if dry else "Đã hoàn thành",job_id));db.commit()
     except Exception as exc:
         db.execute("UPDATE jobs SET status='failed',finished_at=?,message=? WHERE id=?",(now(),str(exc),job_id));db.commit();traceback.print_exc()
