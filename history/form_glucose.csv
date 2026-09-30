@@ -1,0 +1,58 @@
+﻿timestamp,csv_index,nguoi_thuc_hien,trinh_do,status,error
+2026-02-28 21:44:14,1,TRẦN QUỲNH MINH THƯ,ĐẠI HỌC,FAILED,"Locator.click: Error: strict mode violation: get_by_role(""option"", name=""ĐẠI HỌC"") resolved to 2 elements:
+    1) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" data-value=""ĐẠI HỌC"" aria-selected=""false"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""ĐẠI HỌC"", exact=True)
+    2) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" aria-selected=""false"" data-value=""SAU ĐẠI HỌC"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""SAU ĐẠI HỌC"")
+
+Call log:
+  - waiting for get_by_role(""option"", name=""ĐẠI HỌC"")
+"
+2026-02-28 21:44:23,2,LÊ NGỌC DIỆU,ĐẠI HỌC,FAILED,"Locator.click: Error: strict mode violation: get_by_role(""option"", name=""ĐẠI HỌC"") resolved to 2 elements:
+    1) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" data-value=""ĐẠI HỌC"" aria-selected=""false"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""ĐẠI HỌC"", exact=True)
+    2) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" aria-selected=""false"" data-value=""SAU ĐẠI HỌC"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""SAU ĐẠI HỌC"")
+
+Call log:
+  - waiting for get_by_role(""option"", name=""ĐẠI HỌC"")
+"
+2026-02-28 21:44:34,3,THẠCH THỊ THÚY ĐA,ĐẠI HỌC,FAILED,"Locator.click: Error: strict mode violation: get_by_role(""option"", name=""ĐẠI HỌC"") resolved to 2 elements:
+    1) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" data-value=""ĐẠI HỌC"" aria-selected=""false"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""ĐẠI HỌC"", exact=True)
+    2) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" aria-selected=""false"" data-value=""SAU ĐẠI HỌC"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""SAU ĐẠI HỌC"")
+
+Call log:
+  - waiting for get_by_role(""option"", name=""ĐẠI HỌC"")
+"
+2026-02-28 21:44:45,4,NGUYỄN LÊ DUY ANH,ĐẠI HỌC,FAILED,"Locator.click: Error: strict mode violation: get_by_role(""option"", name=""ĐẠI HỌC"") resolved to 2 elements:
+    1) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" data-value=""ĐẠI HỌC"" aria-selected=""false"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""ĐẠI HỌC"", exact=True)
+    2) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" aria-selected=""false"" data-value=""SAU ĐẠI HỌC"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""SAU ĐẠI HỌC"")
+
+Call log:
+  - waiting for get_by_role(""option"", name=""ĐẠI HỌC"")
+"
+2026-02-28 21:44:55,5,LÊ KIM HOÀN,ĐẠI HỌC,FAILED,"Locator.click: Error: strict mode violation: get_by_role(""option"", name=""ĐẠI HỌC"") resolved to 2 elements:
+    1) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" data-value=""ĐẠI HỌC"" aria-selected=""false"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""ĐẠI HỌC"", exact=True)
+    2) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" aria-selected=""false"" data-value=""SAU ĐẠI HỌC"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""SAU ĐẠI HỌC"")
+
+Call log:
+  - waiting for get_by_role(""option"", name=""ĐẠI HỌC"")
+"
+2026-02-28 21:45:04,6,HỒ NGUYỄN TỐ NHƯ,ĐẠI HỌC,FAILED,"Locator.click: Error: strict mode violation: get_by_role(""option"", name=""ĐẠI HỌC"") resolved to 2 elements:
+    1) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" data-value=""ĐẠI HỌC"" aria-selected=""false"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""ĐẠI HỌC"", exact=True)
+    2) <div jsaction="""" role=""option"" tabindex=""-1"" jsname=""wQNmvb"" aria-selected=""false"" data-value=""SAU ĐẠI HỌC"" class=""MocG8c HZ3kWc mhLiyf OIC90c LMgvRb"">…</div> aka get_by_role(""option"", name=""SAU ĐẠI HỌC"")
+
+Call log:
+  - waiting for get_by_role(""option"", name=""ĐẠI HỌC"")
+"
+2026-02-28 21:45:45,7,VÕ PHƯƠNG DUY,CAO ĐẲNG,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 21:55:08,1,TRẦN QUỲNH MINH THƯ,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:03:30,2,LÊ NGỌC DIỆU,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:10:10,3,THẠCH THỊ THÚY ĐA,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:12:23,4,NGUYỄN LÊ DUY ANH,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:17:45,5,LÊ KIM HOÀN,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:22:47,6,HỒ NGUYỄN TỐ NHƯ,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:24:49,7,VÕ PHƯƠNG DUY,CAO ĐẲNG,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:29:11,8,VÕ THỊ YẾN NHI,CAO ĐẲNG,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:31:09,9,NGUYỄN KIM NGÂN,TRUNG CẤP,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:35:13,10,TRẦN QUỲNH MINH THƯ,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:38:21,11,LÊ NGỌC DIỆU,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:41:25,12,THẠCH THỊ THÚY ĐA,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:45:42,13,NGUYỄN LÊ DUY ANH,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
+2026-02-28 22:48:39,14,LÊ KIM HOÀN,ĐẠI HỌC,FAILED,Timeout waiting confirmation (captcha/network?)
