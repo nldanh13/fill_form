@@ -47,9 +47,21 @@ export default defineConfig(async () => {
     server: {
       host: "0.0.0.0",
       allowedHosts: ["terminal.local"],
-      ...(isCodexSeatbeltSandbox
-        ? { watch: { useFsEvents: false, usePolling: true } }
-        : {}),
+      watch: {
+        // The Python service and Playwright write here constantly (SQLite,
+        // logs, Chrome profile). Chrome locks files on Windows, which makes
+        // the watcher crash with EBUSY, and none of it is frontend source.
+        ignored: [
+          "**/local_app/**",
+          "**/browser_profile/**",
+          "**/.pw_profile/**",
+          "**/playwright_profile/**",
+          "**/.venv/**",
+        ],
+        ...(isCodexSeatbeltSandbox
+          ? { useFsEvents: false, usePolling: true }
+          : {}),
+      },
     },
     plugins: [
       vinext(),
