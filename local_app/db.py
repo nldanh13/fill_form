@@ -30,6 +30,7 @@ def init_db():
     """)
     ensure_column(db,"jobs","selected_list_ids","TEXT NOT NULL DEFAULT '[\"ctch\"]'")
     ensure_column(db,"submissions","record_json","TEXT")
+    ensure_column(db,"jobs","heartbeat_at","TEXT")
     db.execute("CREATE INDEX IF NOT EXISTS idx_submissions_lookup ON submissions(period,form_id,department,status)")
     jobs=list(csv.DictReader((SOURCE/"jobs.csv").open(encoding="utf-8-sig")))
     for j in jobs:
@@ -40,15 +41,20 @@ def init_db():
     for dept,block in roster.items():
         for degree,names in block.items():
             for name in names: db.execute("INSERT OR IGNORE INTO staff(name,degree,department) VALUES(?,?,?)",(name,degree,dept))
-    # Nhập lịch sử schema mới một lần, giữ nguyên ngày thực tế.
-    if db.execute("SELECT COUNT(*) FROM submissions").fetchone()[0]==0:
-        titles={r["id"]:r["title"] for r in db.execute("SELECT id,title FROM forms")}
-        for path in (SOURCE/"history").glob("*.csv") if (SOURCE/"history").exists() else []:
-            for row in csv.DictReader(path.open(encoding="utf-8-sig")):
-                if not row.get("submitted_at") or not row.get("name"): continue
-                fid=path.stem; when=row["submitted_at"]; period=when[:7]
-                key=f"import:{fid}:{when}:{row.get('name')}:{row.get('row_index')}"
-                db.execute("INSERT OR IGNORE INTO submissions(period,form_id,form_title,submitted_at,row_index,name,degree,department,list_id,score_total,score_max,score_percent,scores,status,submission_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(period,fid,titles.get(fid,fid),when,row.get("row_index"),row.get("name"),row.get("degree"),row.get("department"),row.get("list_id"),row.get("score_total"),row.get("score_max"),row.get("score_percent"),row.get("scores"),"success",key))
+    # roster.json trên máy là nguồn chuẩn: ai đã bị xóa khỏi file thì cũng bỏ khỏi
+    # bảng staff, để giao diện và lượt điền không còn dùng người không có trong file.
+    in_roster={(name,degree,dept) for dept,block in roster.items() for degree,names in block.items() for name in names}
+    for r in db.execute("SELECT id,name,degree,department FROM staff").fetchall():
+        if (r["name"],r["degree"],r["department"]) not in in_roster: db.execute("DELETE FROM staff WHERE id=?",(r["id"],))
+    # Nhập lịch sử từ source/history mỗi lần khởi động (khóa chống trùng nên chạy lại
+    # không bị nhân đôi), để các lượt ghi vào CSV ngoài giao diện cũng hiện lên.
+    titles={r["id"]:r["title"] for r in db.execute("SELECT id,title FROM forms")}
+    for path in (SOURCE/"history").glob("*.csv") if (SOURCE/"history").exists() else []:
+        for row in csv.DictReader(path.open(encoding="utf-8-sig")):
+            if not row.get("submitted_at") or not row.get("name"): continue
+            fid=path.stem; when=row["submitted_at"]; period=when[:7]
+            key=f"import:{fid}:{when}:{row.get('name')}:{row.get('row_index')}"
+            db.execute("INSERT OR IGNORE INTO submissions(period,form_id,form_title,submitted_at,row_index,name,degree,department,list_id,score_total,score_max,score_percent,scores,status,submission_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(period,fid,titles.get(fid,fid),when,row.get("row_index"),row.get("name"),row.get("degree"),row.get("department"),row.get("list_id"),row.get("score_total"),row.get("score_max"),row.get("score_percent"),row.get("scores"),"success",key))
     # Lập danh sách tháng cũ: mỗi tháng chọn biểu mẫu có nhiều kết quả hợp lệ nhất.
     for period_row in db.execute("SELECT DISTINCT period FROM submissions WHERE dry_run=0"):
         selected=db.execute("SELECT form_id,COUNT(*) AS n FROM submissions WHERE period=? AND status='success' AND dry_run=0 GROUP BY form_id ORDER BY n DESC,form_id LIMIT 1",(period_row["period"],)).fetchone()
@@ -56,3 +62,25 @@ def init_db():
     db.commit();db.close()
 
 def now(): return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+# Tiến trình điền phiếu (worker.py) ghi heartbeat_at vài giây một lần. Nếu nó bị
+# tắt ngang (đóng cửa sổ lệnh, máy ngủ, Chrome treo...) thì tác vụ không bao giờ tự
+# chuyển trạng thái, giao diện cứ báo "Đang thực hiện" và chặn lượt chạy mới.
+HEARTBEAT_STALE_SECONDS=60
+QUEUED_STALE_SECONDS=120
+INTERRUPTED_MESSAGE="Bị gián đoạn: tiến trình điền phiếu đã tắt giữa chừng. Các lượt đã gửi vẫn được giữ, bấm Tiếp tục điền để chạy phần còn lại."
+
+def _age_seconds(value):
+    try: return (datetime.now()-datetime.strptime(value,"%Y-%m-%d %H:%M:%S")).total_seconds()
+    except (TypeError,ValueError): return None
+
+def reap_stale_jobs(db):
+    changed=False
+    for job in db.execute("SELECT id,status,created_at,heartbeat_at FROM jobs WHERE status IN ('queued','running','stopping')").fetchall():
+        if job["heartbeat_at"]:
+            age=_age_seconds(job["heartbeat_at"]);stale=age is None or age>HEARTBEAT_STALE_SECONDS
+        else:
+            age=_age_seconds(job["created_at"]);stale=age is None or age>QUEUED_STALE_SECONDS
+        if stale:
+            db.execute("UPDATE jobs SET status='interrupted',finished_at=?,message=? WHERE id=? AND status IN ('queued','running','stopping')",(now(),INTERRUPTED_MESSAGE,job["id"]));changed=True
+    if changed: db.commit()

@@ -3,7 +3,7 @@ import csv, io, json, sqlite3, subprocess, sys, zipfile
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs,urlparse
-from db import connect,init_db,now,ROOT,SOURCE,DB_PATH
+from db import connect,init_db,now,reap_stale_jobs,ROOT,SOURCE,DB_PATH
 
 def settings_info():
     profile_path=SOURCE/"profile.json"
@@ -40,7 +40,7 @@ def write_roster(db):
 def clean_text(value): return " ".join(str(value or "").split())
 
 def save_staff(db,body):
-    name=clean_text(body.get("name")).upper();degree=clean_text(body.get("degree")).upper();department=clean_text(body.get("department")).upper()
+    name=clean_text(body.get("name"));degree=clean_text(body.get("degree")).upper();department=clean_text(body.get("department")).upper()
     if not name or not degree or not department: return {"detail":"Cần nhập đủ họ tên, trình độ và khoa"},400
     staff_id=int(body.get("id") or 0)
     duplicate=db.execute("SELECT id FROM staff WHERE name=? AND degree=? AND department=? AND id<>?",(name,degree,department,staff_id)).fetchone()
@@ -58,13 +58,25 @@ def delete_staff(db,staff_id):
     db.execute("DELETE FROM staff WHERE id=?",(staff_id,));write_roster(db);db.commit()
     return {"ok":True},200
 
+def resolve_submission(db,submission_id,sent):
+    """Người dùng xem Google Sheet rồi xác nhận lượt "chưa xác nhận" đã vào hay chưa."""
+    row=db.execute("SELECT status,record_json FROM submissions WHERE id=?",(submission_id,)).fetchone()
+    if not row: return {"detail":"Không tìm thấy bản ghi"},404
+    if row["status"]!="unconfirmed": return {"detail":"Bản ghi này không ở trạng thái chờ xác nhận"},409
+    status="success" if sent else "failed"
+    record=json.loads(row["record_json"]) if row["record_json"] else None
+    if record: record.setdefault("delivery",{}).update({"status":status,"confirmed_by_user_at":now()})
+    db.execute("UPDATE submissions SET status=?,record_json=? WHERE id=?",(status,json.dumps(record,ensure_ascii=False) if record else row["record_json"],submission_id));db.commit()
+    return {"ok":True,"status":status},200
+
 def dashboard(period):
-    db=connect(); forms=[]
+    db=connect(); reap_stale_jobs(db); forms=[]
     for f in db.execute("SELECT * FROM forms WHERE active=1 ORDER BY rowid"):
         c=db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND form_id=? AND status='success' AND dry_run=0",(period,f["id"])).fetchone()[0]
         failed=db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND form_id=? AND status='failed'",(period,f["id"])).fetchone()[0]
-        forms.append({**dict(f),"success_count":c,"failed_count":failed,"active":bool(f["active"])})
-    success=sum(x["success_count"] for x in forms);failed=sum(x["failed_count"] for x in forms)
+        unconfirmed=db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND form_id=? AND status='unconfirmed' AND dry_run=0",(period,f["id"])).fetchone()[0]
+        forms.append({**dict(f),"success_count":c,"failed_count":failed,"unconfirmed_count":unconfirmed,"active":bool(f["active"])})
+    success=sum(x["success_count"] for x in forms);failed=sum(x["failed_count"] for x in forms);unconfirmed=sum(x["unconfirmed_count"] for x in forms)
     staff_used=db.execute("SELECT COUNT(DISTINCT name) FROM submissions WHERE period=? AND status='success' AND dry_run=0",(period,)).fetchone()[0]
     recent=[dict(r) for r in db.execute("SELECT id,submitted_at,form_title,name,degree,department,score_percent,status,error FROM submissions WHERE period=? AND dry_run=0 ORDER BY id DESC LIMIT 500",(period,))]
     staff=[dict(r) for r in db.execute("""SELECT s.id,s.name,s.degree,s.department,s.active,
@@ -72,7 +84,7 @@ def dashboard(period):
         FROM staff s LEFT JOIN submissions sub ON sub.name=s.name AND sub.degree=s.degree AND sub.department=s.department AND sub.period=?
         GROUP BY s.id ORDER BY s.department,s.degree,s.name""",(period,))]
     for row in staff: row["active"]=bool(row["active"])
-    job=db.execute("SELECT id,status,done,total,message FROM jobs ORDER BY id DESC LIMIT 1").fetchone()
+    job=db.execute("SELECT id,status,done,total,message,finished_at FROM jobs ORDER BY id DESC LIMIT 1").fetchone()
     list_cfg=json.loads((SOURCE/"staff_lists.json").read_text(encoding="utf-8"))
     departments=[]
     for list_id,item in list_cfg.items():
@@ -82,6 +94,7 @@ def dashboard(period):
         "record_count":db.execute("SELECT COUNT(*) FROM submissions WHERE dry_run=0").fetchone()[0],
         "month_count":db.execute("SELECT COUNT(DISTINCT period) FROM submissions WHERE dry_run=0").fetchone()[0],
         "period_count":db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND dry_run=0",(period,)).fetchone()[0],
+        "period_success":db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND dry_run=0 AND status='success'",(period,)).fetchone()[0],
     }
     monthly_history=[]
     for plan in db.execute("SELECT p.period,p.form_id,p.target,f.title FROM monthly_plans p JOIN forms f ON f.id=p.form_id ORDER BY p.period DESC"):
@@ -89,7 +102,7 @@ def dashboard(period):
         departments_used=[row[0] for row in db.execute("SELECT DISTINCT department FROM submissions WHERE period=? AND form_id=? AND status='success' AND dry_run=0 AND department IS NOT NULL ORDER BY department",(plan["period"],plan["form_id"]))]
         monthly_history.append({**dict(plan),"success_count":count,"departments":departments_used,"status":"completed" if count>=plan["target"] else "in_progress" if count else "planned"})
     current_plan=next((row for row in monthly_history if row["period"]==period),None)
-    result={"period":period,"totals":{"success":success,"failed":failed,"forms_done":sum(x["success_count"]>=x["monthly_target"] for x in forms),"forms_total":len(forms),"staff_used":staff_used},"forms":forms,"recent":recent,"staff":staff,"departments":departments,"storage":storage,"current_plan":current_plan,"monthly_history":monthly_history,"settings":settings_info(),"job":dict(job) if job else None}
+    result={"period":period,"totals":{"success":success,"failed":failed,"unconfirmed":unconfirmed,"forms_done":sum(x["success_count"]>=x["monthly_target"] for x in forms),"forms_total":len(forms),"staff_used":staff_used},"forms":forms,"recent":recent,"staff":staff,"departments":departments,"storage":storage,"current_plan":current_plan,"monthly_history":monthly_history,"settings":settings_info(),"job":dict(job) if job else None}
     db.close();return result
 
 def export_csv(period,department=""):
@@ -121,6 +134,7 @@ class Handler(BaseHTTPRequestHandler):
         u=urlparse(self.path);length=int(self.headers.get("Content-Length",0));body=json.loads(self.rfile.read(length) or b"{}")
         db=connect()
         if u.path=="/api/jobs":
+            reap_stale_jobs(db)
             active=db.execute("SELECT id FROM jobs WHERE status IN ('queued','running','stopping') LIMIT 1").fetchone()
             if active: db.close();return self.send_json({"detail":"Đang có một tác vụ khác chạy"},409)
             form_ids=body.get("form_ids",[])
@@ -134,7 +148,7 @@ class Handler(BaseHTTPRequestHandler):
             if existing and existing["form_id"]!=form_id:
                 used=db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND form_id=? AND status='success' AND dry_run=0",(period,existing["form_id"])).fetchone()[0]
                 if used: db.close();return self.send_json({"detail":"Tháng này đã bắt đầu một biểu mẫu khác nên không thể đổi"},409)
-            current=db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND form_id=? AND status='success' AND dry_run=0",(period,form_id)).fetchone()[0]
+            current=db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND form_id=? AND status IN ('success','unconfirmed') AND dry_run=0",(period,form_id)).fetchone()[0]
             total=max(0,int(form["monthly_target"])-current)
             if not bool(body.get("dry_run",False)):
                 db.execute("INSERT INTO monthly_plans(period,form_id,target,selected_list_ids,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(period) DO UPDATE SET form_id=excluded.form_id,selected_list_ids=excluded.selected_list_ids,updated_at=excluded.updated_at",(period,form_id,int(form["monthly_target"]),json.dumps(selected),now(),now()))
@@ -143,6 +157,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"id":job_id,"status":"queued"},201)
         if u.path=="/api/jobs/stop":
             db.execute("UPDATE jobs SET stop_requested=1,status='stopping',message='Sẽ dừng sau lượt hiện tại' WHERE status IN ('queued','running')");db.commit();db.close();return self.send_json({"ok":True})
+        if u.path=="/api/submissions/resolve":
+            result,status=resolve_submission(db,int(body.get("id",0)),bool(body.get("sent")));db.close();return self.send_json(result,status)
         if u.path=="/api/staff/toggle":
             staff_id=int(body.get("id",0));active=int(bool(body.get("active")))
             if not db.execute("SELECT 1 FROM staff WHERE id=?",(staff_id,)).fetchone(): db.close();return self.send_json({"detail":"Không tìm thấy nhân sự"},404)

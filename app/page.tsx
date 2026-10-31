@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast, Toaster } from "sonner";
 
-type FormRow={id:string;title:string;question_count:number;monthly_target:number;success_count:number;failed_count:number;active:boolean};
+type FormRow={id:string;title:string;question_count:number;monthly_target:number;success_count:number;failed_count:number;unconfirmed_count?:number;active:boolean};
 type HistoryRow={id:number;submitted_at:string;form_title:string;name:string;degree:string;department:string;score_percent:number;status:string;error?:string};
 type StaffRow={id:number;name:string;degree:string;department:string;active:boolean;usage_count:number};
 type StaffDraft={id?:number;name:string;degree:string;department:string};
@@ -23,16 +23,16 @@ type DepartmentRow={id:string;title:string;departments:string[];staff_count:numb
 type MonthlyPlan={period:string;form_id:string;title:string;target:number;success_count:number;departments:string[];status:"planned"|"in_progress"|"completed"};
 type Dashboard={
   period:string;
-  totals:{success:number;failed:number;forms_done:number;forms_total:number;staff_used:number};
+  totals:{success:number;failed:number;unconfirmed?:number;forms_done:number;forms_total:number;staff_used:number};
   forms:FormRow[];
   recent:HistoryRow[];
   staff:StaffRow[];
   departments:DepartmentRow[];
-  storage:{record_count:number;month_count:number;period_count:number};
+  storage:{record_count:number;month_count:number;period_count:number;period_success?:number};
   current_plan:MonthlyPlan|null;
   monthly_history:MonthlyPlan[];
   settings:{email:string;browser_profile_exists:boolean;backup_dir:string};
-  job?:{id:number;status:string;done:number;total:number;message:string}|null;
+  job?:{id:number;status:string;done:number;total:number;message:string;finished_at?:string|null}|null;
 };
 
 const FORM_SEED=[
@@ -46,7 +46,8 @@ const FORM_SEED=[
   ["form_loet_ty_de","Bảng kiểm chăm sóc vết loét tỳ đè",21],
   ["form_vet_thuong_nhiem_khuan","Bảng kiểm chăm sóc vết thương nhiễm khuẩn",25],
 ] as const;
-const currentPeriod=()=>new Date().toISOString().slice(0,7);
+// Lấy tháng theo giờ máy (không dùng toISOString vì đó là giờ UTC, lệch 7 tiếng so với VN).
+const currentPeriod=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`};
 const sample:Dashboard={
   period:currentPeriod(),totals:{success:0,failed:0,forms_done:0,forms_total:9,staff_used:0},
   forms:FORM_SEED.map(([id,title,question_count])=>({id,title,question_count,monthly_target:30,success_count:0,failed_count:0,active:true})),
@@ -66,6 +67,7 @@ export default function Home(){
   const [period,setPeriod]=useState(currentPeriod());
   const [data,setData]=useState(sample);
   const [online,setOnline]=useState(false);
+  const [everOnline,setEverOnline]=useState(false);
   const [chosenForm,setChosenForm]=useState("");
   const [selectedLists,setSelectedLists]=useState<string[]>(["ctch"]);
   const [query,setQuery]=useState("");
@@ -73,11 +75,11 @@ export default function Home(){
   const [departmentFilter,setDepartmentFilter]=useState("all");
   const [editing,setEditing]=useState<StaffDraft|null>(null);
 
-  const load=useCallback(async()=>{try{const next=await api<Dashboard>(`/dashboard?period=${period}`);setData(next);setChosenForm(current=>next.current_plan?.form_id||current);setOnline(true)}catch{setOnline(false)}},[period]);
+  const load=useCallback(async()=>{try{const next=await api<Dashboard>(`/dashboard?period=${period}`);setData(next);setChosenForm(current=>next.current_plan?.form_id||current);setOnline(true);setEverOnline(true)}catch{setOnline(false)}},[period]);
   useEffect(()=>{const first=setTimeout(()=>void load(),0);const timer=setInterval(()=>void load(),3000);return()=>{clearTimeout(first);clearInterval(timer)}},[load]);
 
   const selectedForm=data.forms.find(form=>form.id===chosenForm);
-  const remaining=selectedForm?Math.max(0,selectedForm.monthly_target-selectedForm.success_count):0;
+  const remaining=selectedForm?Math.max(0,selectedForm.monthly_target-selectedForm.success_count-(selectedForm.unconfirmed_count||0)):0;
   const filteredHistory=useMemo(()=>data.recent.filter(row=>(departmentFilter==="all"||row.department===departmentFilter)&&`${row.form_title} ${row.name} ${row.department}`.toLowerCase().includes(query.toLowerCase())),[data.recent,departmentFilter,query]);
   const staffDegrees=useMemo(()=>[...new Set(data.staff.map(row=>row.degree))],[data.staff]);
   const staffDepartments=useMemo(()=>[...new Set([...data.departments.flatMap(item=>item.departments),...data.staff.map(row=>row.department)])],[data.departments,data.staff]);
@@ -85,9 +87,10 @@ export default function Home(){
 
   async function start(dryRun:boolean){
     if(!chosenForm)return toast.error("Hãy chọn một biểu mẫu cho tháng này");
-    if(!remaining&&!dryRun)return toast.success("Biểu mẫu tháng này đã đủ 30 lượt");
+    if(!remaining&&!dryRun)return selectedForm?.unconfirmed_count?toast.warning("Còn lượt chưa xác nhận. Hãy đánh dấu trong Kho dữ liệu trước khi điền tiếp"):toast.success("Biểu mẫu tháng này đã đủ 30 lượt");
     try{await api("/jobs",{method:"POST",body:JSON.stringify({period,form_ids:[chosenForm],list_ids:selectedLists,dry_run:dryRun})});toast.success(dryRun?"Đã bắt đầu chạy thử":"Đã bắt đầu điền đủ 30 lượt");if(!dryRun)setTab("month");void load()}catch(error){toast.error(error instanceof Error?error.message:"Không thể bắt đầu")}
   }
+  async function resolveSubmission(row:HistoryRow,sent:boolean){try{await api("/submissions/resolve",{method:"POST",body:JSON.stringify({id:row.id,sent})});toast.success(sent?"Đã ghi nhận lượt này đã vào Google":"Đã ghi nhận lượt này chưa gửi");void load()}catch(error){toast.error(error instanceof Error?error.message:"Không thể cập nhật")}}
   async function stop(){try{await api("/jobs/stop",{method:"POST"});toast.success("Sẽ dừng sau lượt hiện tại")}catch(error){toast.error(error instanceof Error?error.message:"Không thể dừng")}}
   async function toggleStaff(row:StaffRow,active:boolean){try{await api("/staff/toggle",{method:"POST",body:JSON.stringify({id:row.id,active})});toast.success(active?`Đã dùng lại ${row.name}`:`Đã tạm ngưng ${row.name}`);void load()}catch(error){toast.error(error instanceof Error?error.message:"Không thể cập nhật")}}
   async function saveStaff(draft:StaffDraft){try{await api("/staff/save",{method:"POST",body:JSON.stringify(draft)});toast.success(draft.id?"Đã cập nhật nhân sự":"Đã thêm nhân sự");setEditing(null);void load()}catch(error){toast.error(error instanceof Error?error.message:"Không thể lưu")}}
@@ -97,7 +100,9 @@ export default function Home(){
   function toggleList(id:string){if(id==="ctch")return;setSelectedLists(items=>items.includes(id)?items.filter(item=>item!==id):[...items,id])}
   function exportCsv(){const department=departmentFilter==="all"?"":`&department=${encodeURIComponent(departmentFilter)}`;window.location.href=`http://127.0.0.1:8765/api/export.csv?period=${period}${department}`}
 
-  const activeJob=data.job&&["queued","running","stopping"].includes(data.job.status)?data.job:null;
+  const activeJob=online&&data.job&&["queued","running","stopping"].includes(data.job.status)?data.job:null;
+  const endedJob=online&&data.job&&["failed","interrupted","stopped"].includes(data.job.status)?data.job:null;
+  const unconfirmedCount=data.totals.unconfirmed||0;
   const lockedFormId=data.current_plan&&data.current_plan.success_count>0?data.current_plan.form_id:"";
   const titles:Record<string,string>={month:"Kế hoạch tháng",run:"Chọn biểu mẫu tháng",data:"Kho dữ liệu",settings:"Thiết lập"};
   const navigation=[["month",CalendarCheck,"Tháng này"],["run",Shuffle,"Chọn biểu mẫu"],["data",Database,"Kho dữ liệu"],["settings",Settings,"Thiết lập"]] as const;
@@ -106,6 +111,9 @@ export default function Home(){
     <aside className="bg-[#063c3a] px-4 py-6 text-white"><div className="mb-9 flex items-center gap-3 px-2"><div className="rounded-xl bg-[#c8f34a] p-2 text-[#063c3a]"><Stethoscope/></div><div><b className="block">Trợ lý điền phiếu</b><small className="text-teal-100/60">Ngoại CTCH – TK</small></div></div><nav className="grid gap-1 sm:grid-cols-4 lg:grid-cols-1">{navigation.map(([id,Icon,label])=><button key={id} onClick={()=>{setTab(id);setQuery("")}} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition ${tab===id?"bg-white font-medium text-[#063c3a] shadow-sm":"text-teal-50/75 hover:bg-white/10 hover:text-white"}`}><Icon size={18}/>{label}</button>)}</nav><div className="mt-10 rounded-xl border border-white/10 bg-white/5 p-3 text-xs"><div><span className={`mr-2 inline-block h-2 w-2 rounded-full ${online?"bg-[#c8f34a]":"bg-amber-400"}`}/>{online?"Đã kết nối":"Đang xem dữ liệu mẫu"}</div><p className="mt-2 leading-5 text-teal-100/55">Mỗi tháng chọn một biểu mẫu và lưu đủ 30 kết quả.</p></div></aside>
     <section className="min-w-0 px-5 py-6 md:px-8 lg:px-10"><header className="mb-7 flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-bold tracking-[.14em] text-teal-700">ĐÁNH GIÁ KỸ THUẬT ĐIỀU DƯỠNG</p><h1 className="mt-1 text-3xl font-bold tracking-tight">{titles[tab]}</h1></div><label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm"><CalendarRange size={17}/><Input type="month" value={period} onChange={event=>{setPeriod(event.target.value);setChosenForm("")}} className="h-7 w-36 border-0 p-0 shadow-none"/></label></header>
 
+    {!online&&<div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"><b>{everOnline?"Mất kết nối với dịch vụ trên máy.":"Chưa kết nối được dịch vụ trên máy."}</b> {everOnline?"Số liệu đang hiển thị là lần cập nhật cuối, có thể không khớp với dữ liệu thật. Hãy kiểm tra cửa sổ npm start còn chạy không.":"Số liệu đang hiển thị chỉ là dữ liệu mẫu, không phải dữ liệu thật."}</div>}
+    {unconfirmedCount>0&&<div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"><b>{unconfirmedCount} lượt chưa xác nhận.</b> Đã bấm Gửi nhưng không thấy Google báo đã nhận. Hãy mở Google Sheet kiểm tra, rồi vào Kho dữ liệu đánh dấu từng lượt. Các lượt này đang được giữ chỗ để không gửi dư quá 30.</div>}
+    {endedJob&&<Card className="mb-5 border-rose-200 bg-rose-50 text-slate-950"><CardContent className="p-4"><b>{endedJob.status==="stopped"?"Tác vụ đã dừng":endedJob.status==="interrupted"?"Tác vụ bị gián đoạn":"Tác vụ dừng do lỗi"}</b><span className="ml-2 text-sm text-slate-500">{endedJob.finished_at} · đã chạy {endedJob.done}/{endedJob.total} lượt</span><p className="mt-1 text-sm text-slate-700">{endedJob.message}</p></CardContent></Card>}
     {activeJob&&<Card className="mb-5 border-teal-200 bg-teal-50 text-slate-950"><CardContent className="flex flex-wrap items-center gap-4 p-4"><div className="rounded-full bg-teal-100 p-2 text-teal-700"><Activity className="animate-pulse" size={18}/></div><div className="min-w-48 flex-1"><b>Đang thực hiện</b><p className="text-sm text-slate-600">{activeJob.message}</p><Progress className="mt-2" value={activeJob.total?activeJob.done/activeJob.total*100:0}/></div><Button variant="outline" onClick={stop}><Square size={15}/>Dừng an toàn</Button></CardContent></Card>}
 
     {tab==="month"&&<div className="space-y-5"><Card className="overflow-hidden border-0 bg-[#073f3b] text-white shadow-sm"><CardContent className="grid gap-6 p-6 md:grid-cols-[1fr_auto] md:items-center"><div><Badge className="mb-4 bg-[#c8f34a] text-[#073f3b] hover:bg-[#c8f34a]">{monthLabel(period)}</Badge>{data.current_plan?<><p className="text-sm font-medium text-teal-50/65">BIỂU MẪU ĐÃ CHỌN TRONG THÁNG</p><h2 className="mt-2 max-w-3xl text-2xl font-bold">{data.current_plan.title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-teal-50/70">Hệ thống chỉ điền biểu mẫu này, chọn ngẫu nhiên nhân sự CTCH và tự dừng khi đủ 30 lượt.</p></>:<><h2 className="text-2xl font-bold">Tháng này chưa chọn biểu mẫu</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-teal-50/70">Chọn một trong 9 biểu mẫu, sau đó hệ thống sẽ điền đủ 30 lượt và ghi lại vào lịch sử tháng.</p></>}<Button onClick={()=>setTab("run")} className="mt-5 bg-white text-[#073f3b] hover:bg-teal-50"><Shuffle size={17}/>{data.current_plan?"Tiếp tục điền":"Chọn biểu mẫu tháng này"}</Button></div><div className="min-w-48 rounded-2xl border border-white/10 bg-white/10 p-5"><p className="text-sm text-teal-50/65">Tiến độ tháng</p><p className="mt-1 text-4xl font-bold">{data.current_plan?.success_count||0}<span className="text-lg font-normal text-teal-50/55">/30</span></p><Progress className="my-3 bg-white/15" value={(data.current_plan?.success_count||0)/30*100}/><p className="text-sm">{data.current_plan?.status==="completed"?"Đã hoàn thành":"Còn "+(30-(data.current_plan?.success_count||0))+" lượt"}</p></div></CardContent></Card>
@@ -117,7 +125,7 @@ export default function Home(){
       <Card className={`${panel} h-fit xl:sticky xl:top-6`}><CardHeader><CardTitle>Kế hoạch tháng</CardTitle></CardHeader><CardContent className="space-y-5"><div className="rounded-xl bg-slate-50 p-4"><SummaryRow label="Tháng" value={monthLabel(period)}/><SummaryRow label="Biểu mẫu" value={selectedForm?.title||"Chưa chọn"}/><SummaryRow label="Đã có" value={`${selectedForm?.success_count||0}/30 lượt`}/><SummaryRow label="Cần điền thêm" value={`${remaining} lượt`}/><SummaryRow label="Nguồn nhân sự" value={data.departments.filter(item=>selectedLists.includes(item.id)).flatMap(item=>item.departments).join(", ")}/></div><div className="flex gap-3 rounded-xl border border-teal-100 bg-teal-50 p-3 text-sm text-teal-900"><Shuffle className="mt-0.5 shrink-0" size={18}/><p>Chỉ biểu mẫu đã chọn được chạy. Dữ liệu được chọn ngẫu nhiên, chia đều nhân sự và chống trùng trong tháng.</p></div><Button className="h-11 w-full bg-[#0b746b] hover:bg-[#095f58]" onClick={()=>void start(false)} disabled={!chosenForm}><Play size={17}/>Điền đủ 30 lượt</Button><Button variant="outline" className="w-full" onClick={()=>void start(true)} disabled={!chosenForm}>Chạy thử, không gửi form</Button></CardContent></Card>
     </div>}
 
-    {tab==="data"&&<div className="space-y-5"><Card className={panel}><CardHeader className="gap-4 lg:flex-row lg:items-center lg:justify-between"><div><CardTitle className="flex items-center gap-2"><Database className="text-teal-700"/>Dữ liệu {monthLabel(period)}</CardTitle><p className="mt-1 text-sm text-slate-500">{data.storage.period_count} bản ghi trong tháng · {data.storage.record_count} bản ghi đang được lưu lâu dài</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={exportCsv}><FileSpreadsheet size={17}/>Xuất CSV mở bằng Excel</Button><Button variant="outline" onClick={backup}><Archive size={17}/>Sao lưu toàn bộ</Button></div></CardHeader><CardContent><div className="mb-4 flex flex-wrap gap-3"><SearchBox query={query} setQuery={setQuery}/><Select value={departmentFilter} onValueChange={setDepartmentFilter}><SelectTrigger className="w-52 bg-white"><SelectValue placeholder="Tất cả khoa"/></SelectTrigger><SelectContent><SelectItem value="all">Tất cả khoa</SelectItem>{[...new Set(data.staff.map(row=>row.department))].map(department=><SelectItem key={department} value={department}>{department}</SelectItem>)}</SelectContent></Select></div><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Thời gian</TableHead><TableHead>Biểu mẫu</TableHead><TableHead>Người được đánh giá</TableHead><TableHead>Khoa</TableHead><TableHead>Điểm</TableHead><TableHead>Trạng thái</TableHead></TableRow></TableHeader><TableBody>{filteredHistory.length?filteredHistory.map(row=><TableRow key={row.id}><TableCell className="whitespace-nowrap">{row.submitted_at}</TableCell><TableCell className="min-w-64 font-medium">{row.form_title}</TableCell><TableCell className="whitespace-nowrap">{row.name}<small className="block text-slate-500">{row.degree}</small></TableCell><TableCell>{row.department}</TableCell><TableCell>{row.score_percent?.toFixed(1)}%</TableCell><TableCell><Badge className={row.status==="success"?"bg-emerald-100 text-emerald-800":"bg-rose-100 text-rose-800"}>{row.status==="success"?"Đã gửi":"Lỗi"}</Badge></TableCell></TableRow>):<TableRow><TableCell colSpan={6} className="h-32 text-center text-slate-500">Chưa có dữ liệu phù hợp.</TableCell></TableRow>}</TableBody></Table></div></CardContent></Card>
+    {tab==="data"&&<div className="space-y-5"><Card className={panel}><CardHeader className="gap-4 lg:flex-row lg:items-center lg:justify-between"><div><CardTitle className="flex items-center gap-2"><Database className="text-teal-700"/>Dữ liệu {monthLabel(period)}</CardTitle><p className="mt-1 text-sm text-slate-500">{data.storage.period_count} bản ghi trong tháng ({data.storage.period_success??0} đã gửi thành công, còn lại là lỗi/chưa xác nhận) · {data.storage.record_count} bản ghi đang được lưu lâu dài</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={exportCsv}><FileSpreadsheet size={17}/>Xuất CSV mở bằng Excel</Button><Button variant="outline" onClick={backup}><Archive size={17}/>Sao lưu toàn bộ</Button></div></CardHeader><CardContent><div className="mb-4 flex flex-wrap gap-3"><SearchBox query={query} setQuery={setQuery}/><Select value={departmentFilter} onValueChange={setDepartmentFilter}><SelectTrigger className="w-52 bg-white"><SelectValue placeholder="Tất cả khoa"/></SelectTrigger><SelectContent><SelectItem value="all">Tất cả khoa</SelectItem>{[...new Set(data.staff.map(row=>row.department))].map(department=><SelectItem key={department} value={department}>{department}</SelectItem>)}</SelectContent></Select></div><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Thời gian</TableHead><TableHead>Biểu mẫu</TableHead><TableHead>Người được đánh giá</TableHead><TableHead>Khoa</TableHead><TableHead>Điểm</TableHead><TableHead>Trạng thái</TableHead></TableRow></TableHeader><TableBody>{filteredHistory.length?filteredHistory.map(row=><TableRow key={row.id}><TableCell className="whitespace-nowrap">{row.submitted_at}</TableCell><TableCell className="min-w-64 font-medium">{row.form_title}</TableCell><TableCell className="whitespace-nowrap">{row.name}<small className="block text-slate-500">{row.degree}</small></TableCell><TableCell>{row.department}</TableCell><TableCell>{row.score_percent?.toFixed(1)}%</TableCell><TableCell>{row.status==="unconfirmed"?<div className="min-w-48"><Badge className="bg-amber-100 text-amber-800" title={row.error}>Chưa xác nhận</Badge><div className="mt-2 flex gap-2"><Button size="sm" variant="outline" onClick={()=>void resolveSubmission(row,true)}>Đã có trên Google</Button><Button size="sm" variant="ghost" onClick={()=>void resolveSubmission(row,false)}>Không có</Button></div></div>:<Badge className={row.status==="success"?"bg-emerald-100 text-emerald-800":"bg-rose-100 text-rose-800"} title={row.error}>{row.status==="success"?"Đã gửi":"Lỗi"}</Badge>}</TableCell></TableRow>):<TableRow><TableCell colSpan={6} className="h-32 text-center text-slate-500">Chưa có dữ liệu phù hợp.</TableCell></TableRow>}</TableBody></Table></div></CardContent></Card>
       <Card className="border-teal-100 bg-teal-50/60 text-slate-950"><CardContent className="grid gap-4 p-5 md:grid-cols-3"><StorageNote title="Google Form" text="Vẫn lưu câu trả lời theo cấu hình Google Sheet hiện tại."/><StorageNote title="Cơ sở dữ liệu" text="Lưu có cấu trúc để tìm theo tháng, form, khoa và nhân sự."/><StorageNote title="Tệp dữ liệu mở" text="Tự ghi thêm JSONL và có thể xuất CSV để dùng lâu dài."/></CardContent></Card>
     </div>}
 

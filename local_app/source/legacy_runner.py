@@ -132,6 +132,13 @@ class StaffRecord:
     list_title: str
 
 
+class SubmitUnconfirmed(RuntimeError):
+    """Đã bấm Gửi nhưng không xác nhận được Google đã nhận câu trả lời.
+
+    Câu trả lời có thể đã vào Google Sheet, nên không được tự gửi lại.
+    """
+
+
 class ConfigError(RuntimeError):
     pass
 
@@ -1149,13 +1156,13 @@ def submit_legacy_form(
             deadline = time.time() + int(cfg.get("captcha_wait_seconds", 600))
             while time.time() < deadline:
                 if on_captcha_wait():
-                    raise RuntimeError("Đã dừng khi đang chờ giải CAPTCHA")
+                    raise SubmitUnconfirmed("Đã dừng khi đang chờ giải CAPTCHA")
                 if wait_submit_success(page, cfg.get("success_text", DEFAULT_SUCCESS_TEXT), timeout_ms=5000):
                     return
-            raise RuntimeError("Hết thời gian chờ giải CAPTCHA")
+            raise SubmitUnconfirmed("Hết thời gian chờ giải CAPTCHA")
 
     dump_page_html(page, LAST_PAGE_HTML)
-    raise RuntimeError(f"Timeout chờ xác nhận submit. Đã lưu HTML tại: {LAST_PAGE_HTML}")
+    raise SubmitUnconfirmed(f"Timeout chờ xác nhận submit. Đã lưu HTML tại: {LAST_PAGE_HTML}")
 
 
 def run_job(
