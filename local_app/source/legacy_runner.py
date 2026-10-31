@@ -872,10 +872,40 @@ def resolve_source_value(
     raise ConfigError(f"Source không hỗ trợ: {source}")
 
 
+_FIND_QUESTION_JS = """
+(title) => {
+  const norm = (s) => (s || "").replace(/\\*/g, " ").replace(/\\s+/g, " ").trim().toUpperCase();
+  const want = norm(title);
+  const items = [...document.querySelectorAll('[role="listitem"]')];
+  return items.findIndex((item) => {
+    const heading = item.querySelector('[role="heading"]');
+    return heading && norm(heading.innerText) === want;
+  });
+}
+"""
+
+
 def find_question_container(page: Page, title: str) -> Locator:
+    """Tìm khung câu hỏi theo đúng tiêu đề (bỏ dấu * bắt buộc, không phân biệt hoa thường).
+
+    Cách cũ dựa vào tên lớp CSS của Google Forms và chữ khớp tuyệt đối, dễ bắt nhầm
+    phần tử khác có cùng chữ (ví dụ chữ "KHOA" trong mô tả form) rồi chờ mãi không thấy ô chọn.
+    """
     title = str(title or "").strip()
     if not title:
         raise ConfigError("Thiếu title cho locator kiểu question")
+
+    deadline = time.time() + 8
+    while True:
+        try:
+            index = int(page.evaluate(_FIND_QUESTION_JS, title))
+        except Exception:
+            index = -1
+        if index >= 0:
+            return page.locator('[role="listitem"]').nth(index)
+        if time.time() >= deadline:
+            break
+        page.wait_for_timeout(400)
 
     heading = page.get_by_role("heading", name=title, exact=True).first
     try:
@@ -885,7 +915,7 @@ def find_question_container(page: Page, title: str) -> Locator:
         heading.wait_for(timeout=4000)
 
     return heading.locator(
-        "xpath=ancestor::*[contains(@class,'Qr7Oae') or contains(@class,'geS5n') or contains(@class,'AgroKb')][1]"
+        "xpath=ancestor::*[@role='listitem' or contains(@class,'Qr7Oae') or contains(@class,'geS5n') or contains(@class,'AgroKb')][1]"
     )
 
 
@@ -921,23 +951,56 @@ def fill_text_field(page: Page, locator_cfg: Dict[str, Any], value: str) -> None
     locator.fill(value, timeout=8000)
 
 
+def _visible_option(page: Page, value: str) -> Locator:
+    quoted = value.replace("\\", "\\\\").replace('"', '\\"')
+    return page.locator(f'[role="option"][data-value="{quoted}"]').locator("visible=true").first
+
+
 def choose_dropdown(page: Page, locator_cfg: Dict[str, Any], value: str) -> None:
-    locator = resolve_locator(page, locator_cfg)
+    value = str(value)
+    if str(locator_cfg.get("by", "")).strip().lower() == "question":
+        title = locator_cfg.get("question", locator_cfg.get("value", ""))
+        container = find_question_container(page, title)
+        container.wait_for(timeout=8000)
+        if container.get_by_role("listbox").count() == 0:
+            # Câu hỏi trên Google Form có thể đã đổi từ danh sách thả xuống sang
+            # trắc nghiệm (nút tròn) hoặc ô nhập chữ: vẫn điền đúng giá trị.
+            radio = container.get_by_role("radio", name=value, exact=True)
+            if radio.count() > 0:
+                radio.first.click(timeout=8000)
+                return
+            textbox = container.locator("input:not([type='hidden']):not([disabled]), textarea:not([disabled])")
+            if textbox.count() > 0:
+                textbox.first.fill(value, timeout=8000)
+                return
+            choices = []
+            try:
+                choices = [x.strip() for x in container.get_by_role("radio").all_inner_texts() if x.strip()]
+            except Exception:
+                pass
+            raise RuntimeError(
+                f"Câu '{title}' trên form không có ô chọn nào khớp với '{value}'"
+                + (f". Các lựa chọn đang có: {', '.join(choices)}" if choices else "")
+            )
+        locator = container.get_by_role("listbox").first
+    else:
+        locator = resolve_locator(page, locator_cfg)
     locator.wait_for(timeout=8000)
     locator.click(timeout=8000)
 
-    value = str(value)
     try:
-        option = page.locator(f'[role="option"][data-value="{value}"]').first
+        option = _visible_option(page, value)
         option.wait_for(timeout=5000)
         option.click(timeout=5000)
-        return
     except Exception:
-        pass
-
-    option = page.get_by_role("option", name=value, exact=True).first
-    option.wait_for(timeout=8000)
-    option.click(timeout=8000)
+        option = page.get_by_role("option", name=value, exact=True).locator("visible=true").first
+        try:
+            option.wait_for(timeout=8000)
+        except Exception as exc:
+            raise RuntimeError(f"Danh sách '{locator_cfg.get('question') or locator_cfg.get('value')}' không có lựa chọn '{value}'") from exc
+        option.click(timeout=8000)
+    # Chờ hộp chọn đóng hẳn trước khi sang câu tiếp theo.
+    page.wait_for_timeout(400)
 
 
 def answer_radio_groups_in_order(page: Page, scores: List[str]) -> None:
