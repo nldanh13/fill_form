@@ -29,6 +29,35 @@ def create_backup():
         snapshot.unlink(missing_ok=True)
     return archive
 
+def write_roster(db):
+    """Ghi lại roster.json từ bảng staff để worker và lần khởi động sau dùng đúng dữ liệu đã sửa."""
+    roster={}
+    for r in db.execute("SELECT name,degree,department FROM staff ORDER BY rowid"):
+        roster.setdefault(r["department"],{}).setdefault(r["degree"],[]).append(r["name"])
+    path=SOURCE/"roster.json";tmp=path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(roster,ensure_ascii=False,indent=2)+"\n",encoding="utf-8");tmp.replace(path)
+
+def clean_text(value): return " ".join(str(value or "").split())
+
+def save_staff(db,body):
+    name=clean_text(body.get("name")).upper();degree=clean_text(body.get("degree")).upper();department=clean_text(body.get("department")).upper()
+    if not name or not degree or not department: return {"detail":"Cần nhập đủ họ tên, trình độ và khoa"},400
+    staff_id=int(body.get("id") or 0)
+    duplicate=db.execute("SELECT id FROM staff WHERE name=? AND degree=? AND department=? AND id<>?",(name,degree,department,staff_id)).fetchone()
+    if duplicate: return {"detail":"Nhân sự này đã có trong danh sách"},409
+    if staff_id:
+        if not db.execute("SELECT 1 FROM staff WHERE id=?",(staff_id,)).fetchone(): return {"detail":"Không tìm thấy nhân sự"},404
+        db.execute("UPDATE staff SET name=?,degree=?,department=? WHERE id=?",(name,degree,department,staff_id))
+    else:
+        staff_id=db.execute("INSERT INTO staff(name,degree,department,active) VALUES(?,?,?,1)",(name,degree,department)).lastrowid
+    write_roster(db);db.commit()
+    return {"ok":True,"id":staff_id},200
+
+def delete_staff(db,staff_id):
+    if not db.execute("SELECT 1 FROM staff WHERE id=?",(staff_id,)).fetchone(): return {"detail":"Không tìm thấy nhân sự"},404
+    db.execute("DELETE FROM staff WHERE id=?",(staff_id,));write_roster(db);db.commit()
+    return {"ok":True},200
+
 def dashboard(period):
     db=connect(); forms=[]
     for f in db.execute("SELECT * FROM forms WHERE active=1 ORDER BY rowid"):
@@ -118,6 +147,10 @@ class Handler(BaseHTTPRequestHandler):
             staff_id=int(body.get("id",0));active=int(bool(body.get("active")))
             if not db.execute("SELECT 1 FROM staff WHERE id=?",(staff_id,)).fetchone(): db.close();return self.send_json({"detail":"Không tìm thấy nhân sự"},404)
             db.execute("UPDATE staff SET active=? WHERE id=?",(active,staff_id));db.commit();db.close();return self.send_json({"ok":True})
+        if u.path=="/api/staff/save":
+            result,status=save_staff(db,body);db.close();return self.send_json(result,status)
+        if u.path=="/api/staff/delete":
+            result,status=delete_staff(db,int(body.get("id",0)));db.close();return self.send_json(result,status)
         if u.path=="/api/settings/open-login":
             db.close()
             subprocess.Popen([sys.executable,str(ROOT/"login_browser.py")],cwd=ROOT,stdout=open(ROOT/"data"/"login.log","a",encoding="utf-8"),stderr=subprocess.STDOUT)

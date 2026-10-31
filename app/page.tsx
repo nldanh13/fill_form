@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, Archive, CalendarCheck, CalendarRange, Database, Download, FileSpreadsheet, HardDriveDownload, LogIn, Play, Search, Settings, ShieldCheck, Shuffle, Square, Stethoscope } from "lucide-react";
+import { Activity, Archive, Pencil, Plus, Trash2, X, CalendarCheck, CalendarRange, Database, Download, FileSpreadsheet, HardDriveDownload, LogIn, Play, Search, Settings, ShieldCheck, Shuffle, Square, Stethoscope } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { toast, Toaster } from "sonner";
 type FormRow={id:string;title:string;question_count:number;monthly_target:number;success_count:number;failed_count:number;active:boolean};
 type HistoryRow={id:number;submitted_at:string;form_title:string;name:string;degree:string;department:string;score_percent:number;status:string;error?:string};
 type StaffRow={id:number;name:string;degree:string;department:string;active:boolean;usage_count:number};
+type StaffDraft={id?:number;name:string;degree:string;department:string};
 type DepartmentRow={id:string;title:string;departments:string[];staff_count:number;default:boolean};
 type MonthlyPlan={period:string;form_id:string;title:string;target:number;success_count:number;departments:string[];status:"planned"|"in_progress"|"completed"};
 type Dashboard={
@@ -70,6 +71,7 @@ export default function Home(){
   const [query,setQuery]=useState("");
   const [staffQuery,setStaffQuery]=useState("");
   const [departmentFilter,setDepartmentFilter]=useState("all");
+  const [editing,setEditing]=useState<StaffDraft|null>(null);
 
   const load=useCallback(async()=>{try{const next=await api<Dashboard>(`/dashboard?period=${period}`);setData(next);setChosenForm(current=>next.current_plan?.form_id||current);setOnline(true)}catch{setOnline(false)}},[period]);
   useEffect(()=>{const first=setTimeout(()=>void load(),0);const timer=setInterval(()=>void load(),3000);return()=>{clearTimeout(first);clearInterval(timer)}},[load]);
@@ -77,6 +79,8 @@ export default function Home(){
   const selectedForm=data.forms.find(form=>form.id===chosenForm);
   const remaining=selectedForm?Math.max(0,selectedForm.monthly_target-selectedForm.success_count):0;
   const filteredHistory=useMemo(()=>data.recent.filter(row=>(departmentFilter==="all"||row.department===departmentFilter)&&`${row.form_title} ${row.name} ${row.department}`.toLowerCase().includes(query.toLowerCase())),[data.recent,departmentFilter,query]);
+  const staffDegrees=useMemo(()=>[...new Set(data.staff.map(row=>row.degree))],[data.staff]);
+  const staffDepartments=useMemo(()=>[...new Set([...data.departments.flatMap(item=>item.departments),...data.staff.map(row=>row.department)])],[data.departments,data.staff]);
   const filteredStaff=useMemo(()=>data.staff.filter(row=>`${row.name} ${row.degree} ${row.department}`.toLowerCase().includes(staffQuery.toLowerCase())),[data.staff,staffQuery]);
 
   async function start(dryRun:boolean){
@@ -86,6 +90,8 @@ export default function Home(){
   }
   async function stop(){try{await api("/jobs/stop",{method:"POST"});toast.success("Sẽ dừng sau lượt hiện tại")}catch(error){toast.error(error instanceof Error?error.message:"Không thể dừng")}}
   async function toggleStaff(row:StaffRow,active:boolean){try{await api("/staff/toggle",{method:"POST",body:JSON.stringify({id:row.id,active})});toast.success(active?`Đã dùng lại ${row.name}`:`Đã tạm ngưng ${row.name}`);void load()}catch(error){toast.error(error instanceof Error?error.message:"Không thể cập nhật")}}
+  async function saveStaff(draft:StaffDraft){try{await api("/staff/save",{method:"POST",body:JSON.stringify(draft)});toast.success(draft.id?"Đã cập nhật nhân sự":"Đã thêm nhân sự");setEditing(null);void load()}catch(error){toast.error(error instanceof Error?error.message:"Không thể lưu")}}
+  async function deleteStaff(row:StaffRow){if(!window.confirm(`Xóa hẳn ${row.name} khỏi danh sách? Lịch sử đã gửi vẫn được giữ.`))return;try{await api("/staff/delete",{method:"POST",body:JSON.stringify({id:row.id})});toast.success(`Đã xóa ${row.name}`);void load()}catch(error){toast.error(error instanceof Error?error.message:"Không thể xóa")}}
   async function openLogin(){try{await api("/settings/open-login",{method:"POST"});toast.success("Đã mở Google. Đăng nhập xong, bạn hãy đóng cửa sổ đó.")}catch(error){toast.error(error instanceof Error?error.message:"Không thể mở Google")}}
   async function backup(){try{const result=await api<{path:string}>("/settings/backup",{method:"POST"});toast.success(`Đã sao lưu tại: ${result.path}`,{duration:8000});void load()}catch(error){toast.error(error instanceof Error?error.message:"Không thể sao lưu")}}
   function toggleList(id:string){if(id==="ctch")return;setSelectedLists(items=>items.includes(id)?items.filter(item=>item!==id):[...items,id])}
@@ -116,7 +122,7 @@ export default function Home(){
     </div>}
 
     {tab==="settings"&&<div className="space-y-5"><div className="grid gap-5 md:grid-cols-2"><Card className={panel}><CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="text-teal-700"/>Phiên Google</CardTitle></CardHeader><CardContent className="space-y-4"><div className="rounded-xl bg-slate-50 p-4"><p className="text-sm text-slate-500">Tài khoản cấu hình</p><p className="font-medium">{data.settings.email||"Chưa cấu hình"}</p><p className="mt-2 text-sm">{data.settings.browser_profile_exists?"Đã có hồ sơ đăng nhập":"Chưa tạo hồ sơ đăng nhập"}</p></div><Button onClick={openLogin} className="bg-[#0b746b] hover:bg-[#095f58]"><LogIn size={17}/>Mở đăng nhập Google</Button></CardContent></Card><Card className={panel}><CardHeader><CardTitle className="flex items-center gap-2"><HardDriveDownload className="text-teal-700"/>An toàn dữ liệu</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm leading-6 text-slate-600">Bản sao lưu gồm lịch sử, dữ liệu mở, cấu hình form và danh sách nhân sự; không chứa cookie Google.</p><p className="break-all rounded-xl bg-slate-50 p-3 text-xs">{data.settings.backup_dir||"local_app/data/backups"}</p><Button variant="outline" onClick={backup}><Download size={17}/>Tạo bản sao lưu</Button></CardContent></Card></div>
-      <Card className={panel}><CardContent className="px-6"><Accordion type="multiple"><AccordionItem value="forms"><AccordionTrigger className="text-base">Danh mục {data.forms.length} biểu mẫu</AccordionTrigger><AccordionContent><div className="grid gap-2 md:grid-cols-2">{data.forms.map(form=><div key={form.id} className="flex items-center justify-between rounded-lg border p-3"><div><b>{form.title}</b><small className="block text-slate-500">{form.question_count} câu</small></div><Badge variant="outline">Có thể chọn</Badge></div>)}</div></AccordionContent></AccordionItem><AccordionItem value="staff"><AccordionTrigger className="text-base">Quản lý nhân sự ({data.staff.filter(row=>row.active).length}/{data.staff.length} đang dùng)</AccordionTrigger><AccordionContent><div className="mb-3"><SearchBox query={staffQuery} setQuery={setStaffQuery}/></div><div className="max-h-[480px] overflow-auto"><Table><TableHeader><TableRow><TableHead>Họ tên</TableHead><TableHead>Trình độ</TableHead><TableHead>Khoa</TableHead><TableHead className="text-right">Sử dụng</TableHead></TableRow></TableHeader><TableBody>{filteredStaff.map(row=><TableRow key={row.id}><TableCell className="font-medium">{row.name}</TableCell><TableCell>{row.degree}</TableCell><TableCell>{row.department}</TableCell><TableCell className="text-right"><Switch checked={row.active} onCheckedChange={active=>void toggleStaff(row,active)} className="data-[state=checked]:bg-[#0b746b]"/></TableCell></TableRow>)}</TableBody></Table></div></AccordionContent></AccordionItem></Accordion></CardContent></Card>
+      <Card className={panel}><CardContent className="px-6"><Accordion type="multiple"><AccordionItem value="forms"><AccordionTrigger className="text-base">Danh mục {data.forms.length} biểu mẫu</AccordionTrigger><AccordionContent><div className="grid gap-2 md:grid-cols-2">{data.forms.map(form=><div key={form.id} className="flex items-center justify-between rounded-lg border p-3"><div><b>{form.title}</b><small className="block text-slate-500">{form.question_count} câu</small></div><Badge variant="outline">Có thể chọn</Badge></div>)}</div></AccordionContent></AccordionItem><AccordionItem value="staff"><AccordionTrigger className="text-base">Quản lý nhân sự ({data.staff.filter(row=>row.active).length}/{data.staff.length} đang dùng)</AccordionTrigger><AccordionContent><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><SearchBox query={staffQuery} setQuery={setStaffQuery}/><Button variant="outline" onClick={()=>setEditing({name:"",degree:staffDegrees[0]||"",department:staffDepartments[0]||""})}><Plus size={16}/>Thêm nhân sự</Button></div>{editing&&<StaffEditor key={editing.id??"new"} draft={editing} degrees={staffDegrees} departments={staffDepartments} onCancel={()=>setEditing(null)} onSave={draft=>void saveStaff(draft)}/>}<div className="max-h-[480px] overflow-auto"><Table><TableHeader><TableRow><TableHead>Họ tên</TableHead><TableHead>Trình độ</TableHead><TableHead>Khoa</TableHead><TableHead>Đang dùng</TableHead><TableHead className="text-right">Thao tác</TableHead></TableRow></TableHeader><TableBody>{filteredStaff.map(row=><TableRow key={row.id} className={row.active?"":"text-slate-400"}><TableCell className="font-medium">{row.name}</TableCell><TableCell>{row.degree}</TableCell><TableCell>{row.department}</TableCell><TableCell><Switch checked={row.active} onCheckedChange={active=>void toggleStaff(row,active)} className="data-[state=checked]:bg-[#0b746b]"/></TableCell><TableCell className="whitespace-nowrap text-right"><Button variant="ghost" size="icon" title="Sửa" onClick={()=>setEditing({id:row.id,name:row.name,degree:row.degree,department:row.department})}><Pencil size={16}/></Button><Button variant="ghost" size="icon" title="Xóa" onClick={()=>void deleteStaff(row)} className="text-rose-600 hover:text-rose-700"><Trash2 size={16}/></Button></TableCell></TableRow>)}</TableBody></Table></div></AccordionContent></AccordionItem></Accordion></CardContent></Card>
     </div>}
     </section></div></main>
 }
@@ -125,3 +131,13 @@ function SearchBox({query,setQuery}:{query:string;setQuery:(value:string)=>void}
 function SummaryRow({label,value}:{label:string;value:string}){return <div className="flex items-start justify-between gap-4 border-b border-slate-200 py-2 last:border-0"><span className="text-sm text-slate-500">{label}</span><b className="max-w-52 text-right text-sm">{value}</b></div>}
 function StorageNote({title,text}:{title:string;text:string}){return <div className="flex gap-3"><div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-teal-600"/><div><b>{title}</b><p className="mt-1 text-sm leading-5 text-slate-600">{text}</p></div></div>}
 function PlanBadge({status}:{status:MonthlyPlan["status"]}){if(status==="completed")return <Badge className="bg-emerald-100 text-emerald-800">Đã đủ 30</Badge>;if(status==="in_progress")return <Badge className="bg-amber-100 text-amber-800">Đang thực hiện</Badge>;return <Badge variant="outline">Đã chọn</Badge>}
+function StaffEditor({draft,degrees,departments,onCancel,onSave}:{draft:StaffDraft;degrees:string[];departments:string[];onCancel:()=>void;onSave:(draft:StaffDraft)=>void}){
+  const [value,setValue]=useState(draft);
+  const field="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm";
+  return <form onSubmit={event=>{event.preventDefault();onSave(value)}} className="mb-4 grid gap-3 rounded-xl border border-teal-200 bg-teal-50/60 p-4 md:grid-cols-[2fr_1fr_1fr_auto] md:items-end">
+    <label className="grid gap-1 text-sm">Họ tên<Input required value={value.name} onChange={event=>setValue({...value,name:event.target.value})} placeholder="NGUYỄN VĂN A" className="bg-white"/></label>
+    <label className="grid gap-1 text-sm">Trình độ<input required list="staff-degrees" value={value.degree} onChange={event=>setValue({...value,degree:event.target.value})} className={field}/><datalist id="staff-degrees">{degrees.map(item=><option key={item} value={item}/>)}</datalist></label>
+    <label className="grid gap-1 text-sm">Khoa<select required value={value.department} onChange={event=>setValue({...value,department:event.target.value})} className={field}>{departments.map(item=><option key={item} value={item}>{item}</option>)}</select></label>
+    <div className="flex gap-2"><Button type="submit" className="bg-[#0b746b] hover:bg-[#095f58]">{value.id?"Lưu":"Thêm"}</Button><Button type="button" variant="ghost" size="icon" title="Hủy" onClick={onCancel}><X size={16}/></Button></div>
+  </form>
+}
