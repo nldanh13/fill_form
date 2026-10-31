@@ -38,6 +38,14 @@ def browser_closed(page,exc=None):
     except Exception: return True
     return bool(exc) and any(marker in str(exc) for marker in CLOSED_MARKERS)
 
+def save_error_snapshot(page):
+    """Lưu ảnh màn hình + HTML trang lúc lỗi vào local_app/data để dễ tìm nguyên nhân."""
+    folder=ROOT/"data";folder.mkdir(parents=True,exist_ok=True)
+    try:
+        page.screenshot(path=str(folder/"loi_gan_nhat.png"),full_page=True,timeout=5000)
+        (folder/"loi_gan_nhat.html").write_text(page.content(),encoding="utf-8")
+    except Exception: pass
+
 def run(job_id):
     init_db();db=connect();job=db.execute("SELECT * FROM jobs WHERE id=?",(job_id,)).fetchone()
     if not job:return
@@ -98,6 +106,7 @@ def run(job_id):
                 except Exception as exc:
                     # Đã bấm Gửi mà không thấy xác nhận: có thể Google đã nhận, đánh dấu để bạn kiểm tra.
                     status="unconfirmed" if unconfirmed_error and isinstance(exc,unconfirmed_error) else "failed";error=str(exc)
+                    if not dry: save_error_snapshot(page)
                 submitted_at=now();record={"schema_version":1,"record_id":subkey,"period":job["period"],"submitted_at":submitted_at,"form":{"id":fid,"title":form["title"]},"respondent":{"name":staff.name,"degree":staff.degree,"department":staff.department,"list_id":staff.list_id},"source":{"row_index":row_no,"values":row},"evaluation":{"scores":scores,"score_total":total,"score_max":maximum,"score_percent":percent,"comment":comment},"delivery":{"status":status,"error":error,"dry_run":dry}}
                 cur=db.execute("INSERT OR IGNORE INTO submissions(job_id,period,form_id,form_title,submitted_at,row_index,name,degree,department,list_id,score_total,score_max,score_percent,scores,comment,status,error,submission_key,dry_run,record_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(job_id,job["period"],fid,form["title"],submitted_at,row_no,staff.name,staff.degree,staff.department,staff.list_id,total,maximum,percent,"-".join(scores),comment,status,error,subkey,int(dry),json.dumps(record,ensure_ascii=False)))
                 if cur.rowcount and not dry: archive_record(record)
