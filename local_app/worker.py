@@ -1,5 +1,5 @@
 from __future__ import annotations
-import csv, hashlib, importlib.util, json, random, sys, traceback
+import csv, hashlib, importlib.util, json, random, sqlite3, sys, threading, traceback
 from db import connect,init_db,now,ROOT,SOURCE
 
 # Windows ghi log ra file bằng bảng mã mặc định (cp1252), nên print() tiếng Việt
@@ -15,22 +15,56 @@ def archive_record(record):
     folder=ROOT/"data"/"archive";folder.mkdir(parents=True,exist_ok=True)
     with (folder/f"{record['period']}.jsonl").open("a",encoding="utf-8") as output: output.write(json.dumps(record,ensure_ascii=False)+"\n")
 
+MAX_CONSECUTIVE_FAILURES=3
+CLOSED_MARKERS=("has been closed","Target closed","Browser closed","browser has disconnected","Connection closed")
+
+def start_heartbeat(job_id):
+    """Ghi heartbeat_at định kỳ để server biết tiến trình này còn sống."""
+    stop=threading.Event()
+    def beat():
+        db=connect()
+        try:
+            while True:
+                try: db.execute("UPDATE jobs SET heartbeat_at=? WHERE id=?",(now(),job_id));db.commit()
+                except sqlite3.Error: pass
+                if stop.wait(5): break
+        finally: db.close()
+    threading.Thread(target=beat,daemon=True).start()
+    return stop
+
+def browser_closed(page,exc=None):
+    try:
+        if page is None or page.is_closed(): return True
+    except Exception: return True
+    return bool(exc) and any(marker in str(exc) for marker in CLOSED_MARKERS)
+
 def run(job_id):
     init_db();db=connect();job=db.execute("SELECT * FROM jobs WHERE id=?",(job_id,)).fetchone()
     if not job:return
-    db.execute("UPDATE jobs SET status='running',started_at=?,message='Đang nạp cấu hình' WHERE id=?",(now(),job_id));db.commit()
-    legacy=load_legacy();profile=legacy.load_json(SOURCE/"profile.json");roster=legacy.load_json(SOURCE/"roster.json");bank=legacy.load_json(SOURCE/"comment_bank.json");lists=legacy.load_staff_lists(roster)
-    context=page=pw=None;last_error=None
+    db.execute("UPDATE jobs SET status='running',started_at=?,heartbeat_at=?,message='Đang nạp cấu hình' WHERE id=?",(now(),now(),job_id));db.commit()
+    heartbeat=start_heartbeat(job_id)
+    context=page=pw=None;last_error=None;unconfirmed=None;shortfall=[]
+    def finish(status,message):
+        db.execute("UPDATE jobs SET status=?,finished_at=?,message=? WHERE id=?",(status,now(),message,job_id));db.commit()
+    def open_browser():
+        nonlocal context,page
+        if context:
+            try: context.close()
+            except Exception: pass
+        context=pw.chromium.launch_persistent_context(user_data_dir=str(ROOT/"data"/"browser_profile"),headless=False,viewport={"width":1400,"height":900});page=context.pages[0] if context.pages else context.new_page()
     try:
+        legacy=load_legacy();profile=legacy.load_json(SOURCE/"profile.json");roster=legacy.load_json(SOURCE/"roster.json");bank=legacy.load_json(SOURCE/"comment_bank.json");lists=legacy.load_staff_lists(roster)
+        unconfirmed_error=getattr(legacy,"SubmitUnconfirmed",None)
         form_ids=json.loads(job["form_ids"]);requested=int(job["requested_count"]);dry=bool(job["dry_run"]);done=0;selected_lists=json.loads(job["selected_list_ids"] or '["ctch"]')
         if not dry:
             if legacy.sync_playwright is None:
                 raise RuntimeError("Chưa cài Playwright. Hãy chạy start_windows.bat để cài tự động.")
-            pw=legacy.sync_playwright().start();context=pw.chromium.launch_persistent_context(user_data_dir=str(ROOT/"data"/"browser_profile"),headless=False,viewport={"width":1400,"height":900});page=context.pages[0] if context.pages else context.new_page()
+            pw=legacy.sync_playwright().start();open_browser()
         for fid in form_ids:
             form=db.execute("SELECT * FROM forms WHERE id=?",(fid,)).fetchone();cfg=legacy.normalize_config(legacy.load_json(SOURCE/form["config_path"]),SOURCE/form["config_path"])
             rows=list(csv.DictReader((SOURCE/form["data_path"]).open(encoding="utf-8-sig")))
-            current=db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND form_id=? AND status='success' AND dry_run=0",(job["period"],fid)).fetchone()[0]
+            # Lượt "chưa xác nhận" có thể đã vào Google Sheet nên cũng giữ chỗ, tránh gửi dư quá 30.
+            current=db.execute("SELECT COUNT(*) FROM submissions WHERE period=? AND form_id=? AND status IN ('success','unconfirmed') AND dry_run=0",(job["period"],fid)).fetchone()[0]
             allowed=max(0,min(requested,int(form["monthly_target"])-current))
             pool=(
                 [legacy.StaffRecord("Không áp dụng","","","anonymous","Không áp dụng")]
@@ -42,11 +76,13 @@ def run(job_id):
                 pool=[s for s in pool if (s.name,s.degree,s.department) in active_staff]
                 if not pool: raise RuntimeError("Không còn nhân sự đang hoạt động phù hợp với biểu mẫu.")
             for r in db.execute("SELECT name,department,list_id,COUNT(*) n FROM submissions WHERE form_id=? AND status='success' GROUP BY name,department,list_id",(fid,)):usage[(r["list_id"] or "",r["department"] or "",r["name"] or "")]=r["n"]
-            if not dry:legacy.ensure_access(page,cfg["view_url"])
-            success=attempt=0;row_order=list(range(len(rows)));random.shuffle(row_order)
+            if not dry:
+                if browser_closed(page): open_browser()
+                legacy.ensure_access(page,cfg["view_url"])
+            success=attempt=failures_in_row=0;row_order=list(range(len(rows)));random.shuffle(row_order)
             while success<allowed and attempt<max(len(rows)*len(pool),allowed*3):
                 if db.execute("SELECT stop_requested FROM jobs WHERE id=?",(job_id,)).fetchone()[0]:
-                    db.execute("UPDATE jobs SET status='stopped',finished_at=?,message='Đã dừng an toàn' WHERE id=?",(now(),job_id));db.commit();return
+                    return finish("stopped","Đã dừng an toàn")
                 if attempt and attempt%len(rows)==0: random.shuffle(row_order)
                 row_no=row_order[attempt%len(rows)]+1;row=rows[row_no-1];scores=legacy.extract_scores(row,len(cfg["score_fields"]));attempt+=1
                 staff=legacy.choose_staff_from_pool(pool,staff_usage_counts=usage);subkey=make_key(fid,job["period"],row_no,staff.name,scores)
@@ -56,22 +92,52 @@ def run(job_id):
                     db.execute("UPDATE jobs SET message=? WHERE id=?",(f"{form['title']}: đang chờ bạn giải CAPTCHA và bấm Gửi trên cửa sổ Chrome",job_id));db.commit()
                     return bool(db.execute("SELECT stop_requested FROM jobs WHERE id=?",(job_id,)).fetchone()[0])
                 try:
-                    if not dry:legacy.submit_legacy_form(page,cfg,profile,row,staff.name,staff.degree,staff.department,comment,scores,on_captcha_wait=on_captcha_wait)
-                except Exception as exc:status="failed";error=str(exc)
+                    if not dry:
+                        if browser_closed(page): open_browser()
+                        legacy.submit_legacy_form(page,cfg,profile,row,staff.name,staff.degree,staff.department,comment,scores,on_captcha_wait=on_captcha_wait)
+                except Exception as exc:
+                    # Đã bấm Gửi mà không thấy xác nhận: có thể Google đã nhận, đánh dấu để bạn kiểm tra.
+                    status="unconfirmed" if unconfirmed_error and isinstance(exc,unconfirmed_error) else "failed";error=str(exc)
                 submitted_at=now();record={"schema_version":1,"record_id":subkey,"period":job["period"],"submitted_at":submitted_at,"form":{"id":fid,"title":form["title"]},"respondent":{"name":staff.name,"degree":staff.degree,"department":staff.department,"list_id":staff.list_id},"source":{"row_index":row_no,"values":row},"evaluation":{"scores":scores,"score_total":total,"score_max":maximum,"score_percent":percent,"comment":comment},"delivery":{"status":status,"error":error,"dry_run":dry}}
                 cur=db.execute("INSERT OR IGNORE INTO submissions(job_id,period,form_id,form_title,submitted_at,row_index,name,degree,department,list_id,score_total,score_max,score_percent,scores,comment,status,error,submission_key,dry_run,record_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(job_id,job["period"],fid,form["title"],submitted_at,row_no,staff.name,staff.degree,staff.department,staff.list_id,total,maximum,percent,"-".join(scores),comment,status,error,subkey,int(dry),json.dumps(record,ensure_ascii=False)))
                 if cur.rowcount and not dry: archive_record(record)
-                done+=1;success+=status in ("success","preview");db.execute("UPDATE jobs SET done=?,message=? WHERE id=?",(done,f"{form['title']}: {success}/{allowed}",job_id));db.commit()
-                if status=="failed":last_error=error;break
+                done+=1;success+=bool(cur.rowcount) and status in ("success","preview")
+                db.execute("UPDATE jobs SET done=?,message=? WHERE id=?",(done,f"{form['title']}: {success}/{allowed}",job_id));db.commit()
+                if status=="unconfirmed":unconfirmed=(staff.name,error);break
+                if status=="failed":
+                    # Lỗi trước khi bấm Gửi (mạng chậm, trang tải lỗi, lỡ tay đóng Chrome...):
+                    # chưa có gì được gửi nên thử lượt khác thay vì dừng cả tác vụ.
+                    last_error=error;failures_in_row+=1;print(f"[{now()}] Lượt lỗi ({failures_in_row}/{MAX_CONSECUTIVE_FAILURES}): {error}",flush=True)
+                    if failures_in_row>=MAX_CONSECUTIVE_FAILURES:break
+                    if not dry and browser_closed(page,error):
+                        try: open_browser()
+                        except Exception as exc: last_error=f"Không mở lại được Chrome: {exc}";break
+                    continue
+                failures_in_row=0;last_error=None
+            if unconfirmed or failures_in_row>=MAX_CONSECUTIVE_FAILURES:break
+            if success<allowed: shortfall.append(f"{form['title']}: {success}/{allowed}")
         if db.execute("SELECT stop_requested FROM jobs WHERE id=?",(job_id,)).fetchone()[0]:
-            db.execute("UPDATE jobs SET status='stopped',finished_at=?,message='Đã dừng an toàn' WHERE id=?",(now(),job_id));db.commit();return
-        if last_error:
-            db.execute("UPDATE jobs SET status='failed',finished_at=?,message=? WHERE id=?",(now(),f"Lỗi khi gửi: {last_error}",job_id));db.commit();return
-        db.execute("UPDATE jobs SET status='completed',finished_at=?,message=? WHERE id=?",(now(),"Chạy thử hoàn tất" if dry else "Đã hoàn thành",job_id));db.commit()
-    except Exception as exc:
-        db.execute("UPDATE jobs SET status='failed',finished_at=?,message=? WHERE id=?",(now(),str(exc),job_id));db.commit();traceback.print_exc()
+            return finish("stopped","Đã dừng an toàn")
+        if unconfirmed:
+            return finish("failed",f"Đã bấm Gửi cho {unconfirmed[0]} nhưng không thấy Google xác nhận ({unconfirmed[1]}). Hãy mở Google Sheet kiểm tra rồi đánh dấu lượt này ở Kho dữ liệu, sau đó bấm Tiếp tục điền.")
+        if last_error and failures_in_row>=MAX_CONSECUTIVE_FAILURES:
+            return finish("failed",f"Dừng sau {MAX_CONSECUTIVE_FAILURES} lượt lỗi liên tiếp: {last_error}")
+        if shortfall:
+            return finish("completed","Đã chạy hết dữ liệu nhưng chưa đủ lượt (không còn cặp dòng dữ liệu/nhân sự chưa dùng): "+"; ".join(shortfall))
+        finish("completed","Chạy thử hoàn tất" if dry else "Đã hoàn thành")
+    except BaseException as exc:
+        # BaseException để cả Ctrl+C / đóng cửa sổ lệnh cũng ghi lại trạng thái.
+        try: finish("failed",str(exc) or exc.__class__.__name__)
+        except Exception: pass
+        traceback.print_exc()
+        if not isinstance(exc,Exception): raise
     finally:
-        if context:context.close()
-        if pw:pw.stop()
+        heartbeat.set()
+        if context:
+            try: context.close()
+            except Exception: pass
+        if pw:
+            try: pw.stop()
+            except Exception: pass
         db.close()
 if __name__=="__main__":run(int(sys.argv[1]))

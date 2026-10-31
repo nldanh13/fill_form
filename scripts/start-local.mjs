@@ -33,16 +33,55 @@ if (checkPlaywright.status !== 0) {
   if (setup.status !== 0) process.exit(setup.status ?? 1);
 }
 
-console.log("\n[1/2] Khoi dong dich vu du lieu va Playwright...");
-const backend = spawn(python.command, [...python.args, "server.py"], { cwd: localApp, stdio: "inherit" });
-console.log("[2/2] Khoi dong giao dien tai http://127.0.0.1:3000 ...\n");
-// Node 22 trên Windows có thể báo spawn EINVAL khi gọi thẳng file npm.cmd.
-// Chạy qua cmd.exe là cách tương thích ổn định với PowerShell, CMD và đường dẫn có khoảng trắng.
+// Dịch vụ Python (đang điền phiếu) và giao diện Vite chạy riêng. Trước đây chỉ cần một
+// bên thoát (ví dụ Vite lỗi EBUSY trên Windows) là cả hai bị tắt theo, làm Chrome đang
+// điền cũng đóng. Giờ bên nào thoát bất thường sẽ được tự khởi động lại.
 const windowsShell = process.env.ComSpec || "C:\\Windows\\System32\\cmd.exe";
 const frontendEnv = { ...process.env, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" };
-const frontend = isWindows
-  ? spawn(windowsShell, ["/d", "/s", "/c", "npm run start:ui"], { cwd: root, stdio: "inherit", windowsHide: false, env: frontendEnv })
-  : spawn("npm", ["run", "start:ui"], { cwd: root, stdio: "inherit", env: frontendEnv });
+// Node 22 trên Windows có thể báo spawn EINVAL khi gọi thẳng file npm.cmd.
+// Chạy qua cmd.exe là cách tương thích ổn định với PowerShell, CMD và đường dẫn có khoảng trắng.
+const services = {
+  backend: {
+    label: "dich vu du lieu",
+    start: () => spawn(python.command, [...python.args, "server.py"], { cwd: localApp, stdio: "inherit" }),
+  },
+  frontend: {
+    label: "giao dien",
+    start: () => isWindows
+      ? spawn(windowsShell, ["/d", "/s", "/c", "npm run start:ui"], { cwd: root, stdio: "inherit", windowsHide: false, env: frontendEnv })
+      : spawn("npm", ["run", "start:ui"], { cwd: root, stdio: "inherit", env: frontendEnv }),
+  },
+};
+const MAX_RESTARTS = 5;
+const RESTART_WINDOW_MS = 5 * 60 * 1000;
+let stopping = false;
+
+function launch(name) {
+  const service = services[name];
+  service.restarts = (service.restarts || []).filter(time => Date.now() - time < RESTART_WINDOW_MS);
+  const child = service.start();
+  service.child = child;
+  child.on("error", error => {
+    console.error(`[LOI ${service.label.toUpperCase()}]`, error.message);
+    if (!child.pid) stop(1); // không khởi chạy được thì không có sự kiện exit để thử lại
+  });
+  child.on("exit", code => {
+    if (stopping || service.child !== child) return;
+    if (service.restarts.length >= MAX_RESTARTS) {
+      console.error(`\n[LOI] ${service.label} thoat ${MAX_RESTARTS} lan trong 5 phut, dung chuong trinh.\n`);
+      stop(code ?? 1);
+      return;
+    }
+    service.restarts.push(Date.now());
+    console.error(`\n[CANH BAO] ${service.label} da thoat (ma ${code}). Dang khoi dong lai sau 2 giay...\n`);
+    setTimeout(() => { if (!stopping) launch(name); }, 2000);
+  });
+}
+
+console.log("\n[1/2] Khoi dong dich vu du lieu va Playwright...");
+launch("backend");
+console.log("[2/2] Khoi dong giao dien tai http://127.0.0.1:3000 ...\n");
+launch("frontend");
 
 const opener = isWindows
   ? ["explorer.exe", ["http://127.0.0.1:3000"]]
@@ -61,16 +100,11 @@ setTimeout(() => {
   }
 }, 3500);
 
-let stopping = false;
 function stop(code = 0) {
   if (stopping) return;
   stopping = true;
-  backend.kill(); frontend.kill();
+  for (const service of Object.values(services)) service.child?.kill();
   setTimeout(() => process.exit(code), 200);
 }
-backend.on("exit", code => { if (!stopping) stop(code ?? 1); });
-frontend.on("exit", code => { if (!stopping) stop(code ?? 1); });
-backend.on("error", error => { console.error("[LOI BACKEND]", error.message); stop(1); });
-frontend.on("error", error => { console.error("[LOI GIAO DIEN]", error.message); stop(1); });
 process.on("SIGINT", () => stop(0));
 process.on("SIGTERM", () => stop(0));
