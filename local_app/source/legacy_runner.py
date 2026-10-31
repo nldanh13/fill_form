@@ -1003,15 +1003,42 @@ def choose_dropdown(page: Page, locator_cfg: Dict[str, Any], value: str) -> None
     page.wait_for_timeout(400)
 
 
-def answer_radio_groups_in_order(page: Page, scores: List[str]) -> None:
+_SCORE_GROUPS_JS = """
+() => [...document.querySelectorAll('[role="radiogroup"]')]
+  .map((group, index) => {
+    const radios = [...group.querySelectorAll('[role="radio"]')];
+    const isScore = radios.length > 0 && radios.every((radio) =>
+      /^\\s*\\d+\\s*$/.test(radio.getAttribute("data-value") || radio.getAttribute("aria-label") || radio.innerText || ""));
+    return isScore ? index : -1;
+  })
+  .filter((index) => index >= 0)
+"""
+
+
+def score_radio_groups(page: Page) -> List[Locator]:
+    """Chỉ lấy các nhóm nút tròn chấm điểm (lựa chọn là số 0-4).
+
+    Các câu như KHOA nếu là nút tròn cũng là radiogroup; đếm lẫn vào sẽ làm điểm
+    Câu 1 bị chọn vào ô KHOA và chờ mãi không thấy nút "3".
+    """
     groups = page.get_by_role("radiogroup")
-    count = groups.count()
+    try:
+        indices = [int(i) for i in page.evaluate(_SCORE_GROUPS_JS)]
+    except Exception:
+        indices = []
+    if not indices:
+        return [groups.nth(i) for i in range(groups.count())]
+    return [groups.nth(i) for i in indices]
+
+
+def answer_radio_groups_in_order(page: Page, scores: List[str]) -> None:
+    groups = score_radio_groups(page)
+    count = len(groups)
     if count < len(scores):
         raise RuntimeError(
             f"Không tìm đủ nhóm câu hỏi dạng radio. Tìm thấy {count}, cần {len(scores)}"
         )
-    for i, value in enumerate(scores):
-        group = groups.nth(i)
+    for group, value in zip(groups, scores):
         radio = group.get_by_role("radio", name=str(value), exact=True).first
         radio.wait_for(timeout=8000)
         try:
@@ -1178,8 +1205,7 @@ def submit_legacy_form(
         score_cursor = 0
         page_number = 1
         while score_cursor < len(scores):
-            groups = page.get_by_role("radiogroup")
-            visible_count = groups.count()
+            visible_count = len(score_radio_groups(page))
             if visible_count <= 0:
                 raise RuntimeError(f"Phần {page_number} không có câu hỏi chấm điểm")
             remaining = len(scores) - score_cursor
